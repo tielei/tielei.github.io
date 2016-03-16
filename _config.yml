@@ -1,0 +1,29 @@
+markdown: kramdown
+highlighter: pygments
+permalink: /posts/:title.html
+excerpt_separator: "<!-- more -->"
+
+github: tielei
+author: "张铁蕾"
+name: "铁蕾的个人博客"
+url: http://zhangtielei.com
+domain: zhangtielei.com
+all_categories: [
+["poems", "我的诗词","/posts/poems.html"], 
+["android", "Android开发","/posts/android.html"], 
+["ios", "iOS开发","/posts/ios.html"], 
+["server", "服务器架构","/posts/server.html"],
+["about", "关于","/about.html"]
+]
+
+paginate: 8
+paginate_path: "posts/page:num"
+timezone: Asia/Shanghai
+
+
+collections:
+  docs:
+    output: true
+
+gems:
+ - jekyll-paginate
