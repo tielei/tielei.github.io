@@ -1,4 +1,4 @@
 ---
 layout: category
-category: android
+category: ios
 ---

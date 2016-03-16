@@ -13,7 +13,8 @@ all_categories: [
 ["android", "Android开发","/posts/android.html"], 
 ["ios", "iOS开发","/posts/ios.html"], 
 ["server", "服务器架构","/posts/server.html"],
-["about", "关于","/about.html"]
+["about", "关于","/about.html"],
+["other", "杂记","/posts/other.html"]
 ]
 
 paginate: 8
