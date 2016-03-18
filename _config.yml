@@ -1,7 +1,7 @@
 markdown: kramdown
 highlighter: pygments
 permalink: /posts/:title.html
-excerpt_separator: "<!-- more -->"
+excerpt_separator: "<!--more-->"
 
 github: tielei
 author: "张铁蕾"
