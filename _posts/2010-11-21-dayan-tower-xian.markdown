@@ -15,35 +15,35 @@ published: true
 
 <!--more-->
 
-![photo1](http://s10.sinaimg.cn/middle/63d7b9a1g755a9f6a89a9&690&690)
+![photo1](/assets/photos_dayan_tower/1.jpeg)
 
-![photo2](http://s2.sinaimg.cn/middle/63d7b9a1g958a48fef3b1&690&690)
+![photo2](/assets/photos_dayan_tower/2.jpeg)
 
-![photo3](http://s7.sinaimg.cn/middle/63d7b9a1g958a4d9acf76&690&690)
+![photo3](/assets/photos_dayan_tower/3.jpeg)
 
-![photo4](http://s10.sinaimg.cn/middle/63d7b9a1g958a4d499e99&690&690)
+![photo4](/assets/photos_dayan_tower/4.jpeg)
 
-![photo5](http://s4.sinaimg.cn/middle/63d7b9a1g958a4c814ab3&690&690)
+![photo5](/assets/photos_dayan_tower/5.jpeg)
 
-![photo6](http://s16.sinaimg.cn/middle/63d7b9a1g958a4e1d29df&690&690)
+![photo6](/assets/photos_dayan_tower/6.jpeg)
 
-![photo7](http://s6.sinaimg.cn/middle/63d7b9a1g958a4fa9e1a5&690&690)
+![photo7](/assets/photos_dayan_tower/7.jpeg)
 
-![photo8](http://s7.sinaimg.cn/middle/63d7b9a1g958a4df16cf6&690&690)
+![photo8](/assets/photos_dayan_tower/8.jpeg)
 
-![photo9](http://s8.sinaimg.cn/middle/63d7b9a1g958a4f70cf97&690&690)
+![photo9](/assets/photos_dayan_tower/9.jpeg)
 
-![photo10](http://s12.sinaimg.cn/middle/63d7b9a1g958a46f81afb&690&690)
+![photo10](/assets/photos_dayan_tower/10.jpeg)
 
-![photo11](http://s14.sinaimg.cn/middle/63d7b9a1g958a46c85ced&690&690)
+![photo11](/assets/photos_dayan_tower/11.jpeg)
 
-![photo12](http://s2.sinaimg.cn/middle/63d7b9a1g958a4ead64b1&690&690)
+![photo12](/assets/photos_dayan_tower/12.jpeg)
 
-![photo13](http://s8.sinaimg.cn/middle/63d7b9a1g958a48645af7&690&690)
+![photo13](/assets/photos_dayan_tower/13.jpeg)
 
-![photo14](http://s1.sinaimg.cn/middle/63d7b9a1g958a49b408b0&690&690)
+![photo14](/assets/photos_dayan_tower/14.jpeg)
 
-![photo15](http://s2.sinaimg.cn/middle/63d7b9a1g958a3a1c94f1&690&690)
+![photo15](/assets/photos_dayan_tower/15.jpeg)
 
 ---
 招聘路上，2010年10月29日傍晚，与波仔、天舟、黄欢同游。
