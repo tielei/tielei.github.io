@@ -33,6 +33,6 @@ published: true
 
 ---
 
-搬迁前地址：
+搬迁前旧址：
 
 <http://blog.sina.com.cn/s/blog_63d7b9a10102vum6.html>{:target="_blank"}

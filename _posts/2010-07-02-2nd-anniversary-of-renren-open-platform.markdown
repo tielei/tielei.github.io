@@ -48,6 +48,6 @@ published: true
 凭阑怅惘，思不尽的物是人非。
 -- 2016-03-19
 
-搬迁前地址：
+搬迁前旧址：
 
 <http://blog.sina.com.cn/s/blog_63d7b9a10100n4ug.html>{:target="_blank"}

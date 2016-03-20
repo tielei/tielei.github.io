@@ -19,6 +19,6 @@ published: true
 
 这是Charles Zhang版的《清明》。写于2013-04-05。
 
-搬迁前地址：
+搬迁前旧址：
 
 <http://blog.sina.com.cn/s/blog_63d7b9a10101d5z2.html>{:target="_blank"}
