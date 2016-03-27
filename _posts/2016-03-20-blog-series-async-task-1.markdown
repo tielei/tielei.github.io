@@ -8,7 +8,7 @@ published: true
 
 本文是我打算完成的一个系列《iOS和Android开发中的异步处理》的开篇。
 
-从2012年开始开发[微爱](http://welove520.com){:target="_blank"}软件的第一个iOS版本开始计算，我和整个团队接触iOS和Android开发已经差不多有4年时间了。现在回过头来总结，iOS和Android开发与其它领域的开发相比，有什么独特的特征呢？一个合格的iOS或Android开发人员，应该具备哪些技能呢？
+从2012年开始开发[微爱](http://welove520.com){:target="_blank"}软件的第一个iOS版本计算，我和整个团队接触iOS和Android开发已经差不多有4年时间了。现在回过头来总结，iOS和Android开发与其它领域的开发相比，有什么独特的特征呢？一个合格的iOS或Android开发人员，应该具备哪些技能呢？
 
 <!--more-->
 
@@ -136,9 +136,236 @@ public class MyActivity extends Activity {
 
 下面我们再来看一个iOS的小例子。
 
+现在假设我们要维护一个客户端到服务器的TCP长连接。这个连接在网络状态发生变化时能够自动进行重连。首先，我们需要一个能监听网络状态变化的类，这个类叫做Reachability，它的代码如下：
+
+{% highlight objc linenos %}
+//
+//  Reachability.h
+//
+#import <Foundation/Foundation.h>
+#import <SystemConfiguration/SystemConfiguration.h>
+
+extern NSString *const networkStatusNotificationInfoKey;
+extern NSString *const kReachabilityChangedNotification;
+
+typedef NS_ENUM(uint32_t, NetworkStatus) {
+    NotReachable = 0,
+    ReachableViaWiFi = 1,
+    ReachableViaWWAN = 2
+};
+
+@interface Reachability : NSObject {
+@private
+    SCNetworkReachabilityRef reachabilityRef;
+}
+
+/**
+ * 开始网络状态监听
+ */
+- (BOOL)startNetworkMonitoring;
+/**
+ * 结束网络状态监听
+ */
+- (BOOL)stopNetworkMonitoring;
+/**
+ * 同步获取当前网络状态
+ */
+- (NetworkStatus) currentNetworkStatus;
+@end
+
+//
+//  Reachability.m
+//
+#import "Reachability.h"
+#import <sys/socket.h>
+#import <netinet/in.h>
+
+NSString *const networkStatusNotificationInfoKey = @"networkStatus";
+NSString *const kReachabilityChangedNotification = @"NetworkReachabilityChangedNotification";
+
+@implementation Reachability
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        struct sockaddr_in zeroAddress;
+        memset(&zeroAddress, 0, sizeof(zeroAddress));
+        zeroAddress.sin_len = sizeof(zeroAddress);
+        zeroAddress.sin_family = AF_INET;
+        
+        reachabilityRef = SCNetworkReachabilityCreateWithAddress(kCFAllocatorDefault, (const struct sockaddr*)&zeroAddress);
+
+    }
+    
+    return self;
+}
+
+- (void)dealloc {
+    if (reachabilityRef) {
+        CFRelease(reachabilityRef);
+    }
+}
+
+static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReachabilityFlags flags, void* info) {
+    
+    Reachability *reachability = (__bridge Reachability *) info;
+    
+    @autoreleasepool {
+        NetworkStatus networkStatus = [reachability currentNetworkStatus];
+        [[NSNotificationCenter defaultCenter] postNotificationName:kReachabilityChangedNotification object:reachability userInfo:@{networkStatusNotificationInfoKey : @(networkStatus)}];
+    }
+}
+
+- (BOOL)startNetworkMonitoring {
+    SCNetworkReachabilityContext context = {0, (__bridge void * _Nullable)(self), NULL, NULL, NULL};
+    
+    if(SCNetworkReachabilitySetCallback(reachabilityRef, ReachabilityCallback, &context)) {
+        if(SCNetworkReachabilityScheduleWithRunLoop(reachabilityRef, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode)) {
+            return YES;
+        }
+        
+    }
+    
+    return NO;
+}
+
+- (BOOL)stopNetworkMonitoring {
+    return SCNetworkReachabilityUnscheduleFromRunLoop(reachabilityRef, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+}
+
+- (NetworkStatus) currentNetworkStatus {
+    //此处代码忽略...
+}
+{% endhighlight %}
+
+上述代码封装了Reachability类的接口。当调用者想开始网络状态监听时，就调用startNetworkMonitoring；监听完毕就调用stopNetworkMonitoring。我们设想中的长连接正好需要创建和调用Reachability对象来处理网络状态监听。它的代码的相关部分可能会如下所示（类名ServerConnection；头文件代码忽略）：
+
+{% highlight objc linenos %}
+//
+//  ServerConnection.m
+//
+#import "ServerConnection.h"
+#import "Reachability.h"
+
+@interface ServerConnection() {
+    //用户执行socket操作的GCD queue
+    dispatch_queue_t socketQueue;
+    Reachability *reachability;
+}
+@end
+
+@implementation ServerConnection
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        socketQueue = dispatch_queue_create("SocketQueue", NULL);
+        
+        reachability = [[Reachability alloc] init];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(networkStateChanged:) name:kReachabilityChangedNotification object:reachability];
+        [reachability startNetworkMonitoring];
+    }
+    return self;
+}
+
+- (void)dealloc {
+    [reachability stopNetworkMonitoring];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
 
 
+- (void)networkStateChanged:(NSNotification *)notification {
+    NetworkStatus networkStatus = [notification.userInfo[networkStatusNotificationInfoKey] unsignedIntValue];
+    if (networkStatus != NotReachable) {
+        //网络变化，重连
+        dispatch_async(socketQueue, ^{
+            [self reconnect];
+        });
+    }
+}
 
+- (void)reconnect {
+    //此处代码忽略...
+}
+@end
+{% endhighlight %}
+
+长连接ServerConnection在初始化时创建了Reachability实例，并启动监听（调用startNetworkMonitoring），通过系统广播设置监听方法（networkStateChanged:）；当长连接ServerConnection销毁的时候（dealloc）停止监听（调用stopNetworkMonitoring）。
+
+当网络状态发生变化时，networkStateChanged:会被调用，并且当前网络状态会被传入。如果发现网络变得可用了（非NotReachable状态），那么就异步执行重连操作。
+
+这个过程看上去合情合理。但是这里面却隐藏了一个致命的问题。
+
+在进行重连操作时，我们使用dispatch_async启动了一个异步任务。这个异步任务在启动后什么时候执行完，是不可预期的，这取决于reconnect操作执行的快慢。假设reconnect执行比较慢（对于涉及网络的操作，这是很有可能的），那么可能会发生这样一种情况：reconnect还在运行中，但ServerConnection即将销毁。也就是说，整个系统中所有其它对象对于ServerConnection的引用都已经释放了，只留下了dispatch_async调度时block对于self的一个引用。
+
+这会导致什么后果呢？
+
+这会导致：当reconnect执行完的时候，ServerConnection真正被释放，它的dealloc方法不在主线程执行！而是在socketQueue上执行。
+
+而这接下来又会怎么样呢？这取决于Reachability的实现。
+
+我们来重新分析一下Reachability的代码来得到这件事发生的最终影响。这个情况发生时，Reachability的stopNetworkMonitoring在非主线程被调用了。而当初startNetworkMonitoring被调用时却是在主线程的。现在我们看到了，startNetworkMonitoring和stopNetworkMonitoring如果前后不在同一个线程上执行，那么在它们的实现中的CFRunLoopGetCurrent()就不是指的同一个Run Loop。这已经在逻辑上发生“错误”了。在这个“错误”发生之后，stopNetworkMonitoring中的SCNetworkReachabilityUnscheduleFromRunLoop就没有能够把Reachability实例从原来在主线程上调度的那个Run Loop上卸下来。也就是说，此后如果网络状态再次发生变化，那么ReachabilityCallback仍然会执行，但这时原来的Reachability实例已经被销毁过了（由ServerConnection的销毁而销毁）。按上述代码的目前的实现，这时ReachabilityCallback中的info参数指向了一个已经被释放的Reachability对象，那么接下来发生崩溃也就不足为奇了。
+
+有人可能会说，dispatch_async执行的block中不应该直接引用self，而应该使用weak strong dance. 也就是把dispatch_async那段代码改成下面的形式：
+
+{% highlight objc linenos %}
+        __weak ServerConnection *wself = self;
+        dispatch_async(socketQueue, ^{
+            __strong ServerConnection *sself = wself;
+            [sself reconnect];
+        });
+{% endhighlight %}
+
+这样改有没有效果呢？根据我们上面的分析，显然没有。ServerConnection的dealloc仍然在非主线程上执行，上面的问题也依然存在。weak strong dance被设计用来解决循环引用的问题，但不能解决我们这里碰到的异步任务延迟的问题。
+
+实际上，即使把它改成下面的形式，仍然没有效果。
+
+{% highlight objc linenos %}
+        __weak ServerConnection *wself = self;
+        dispatch_async(socketQueue, ^{
+            [wself reconnect];
+        });
+{% endhighlight %}
+
+即使拿weak引用（wself）来调用reconnect方法，它一旦执行，也会造成ServerConnection的引用计数增加。结果仍然是dealloc在非主线程上执行。
+
+那既然dealloc在非主线程上执行会造成问题，那我们强制把dealloc里面的代码调用到主线程执行好了，如下：
+
+{% highlight objc linenos %}
+- (void)dealloc {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [reachability stopNetworkMonitoring];
+    });
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+{% endhighlight %}
+
+显然，在dealloc再调用dispatch_async的这种方法也是行不通的。因为在dealloc执行过之后，ServerConnection实例已经被销毁了，那么当block执行时，reachability就依赖了一个已经被销毁的ServerConnection实例。结果还是崩溃。
+
+那不用dispatch_async好了，改用dispatch_sync好了。仔细修改后的代码如下：
+
+{% highlight objc linenos %}
+- (void)dealloc {
+    if (![NSThread isMainThread]) {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [reachability stopNetworkMonitoring];
+        });
+    }
+    else {
+        [reachability stopNetworkMonitoring];
+    }
+
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+{% endhighlight %}
+
+经过“前后左右”打补丁，我们现在总算得到了一段可以基本能正常执行的代码了。然而，在dealloc里执行dispatch_sync这种可能耗时的“同步”操作，总不免令人胆战心惊。
+
+那到底怎样做更好呢？
+
+个人认为：**并不是所有销毁工作都适合写在dealloc里**。
+
+比如上面的ServerConnection的例子，业务逻辑自己肯定知道应该在哪里
 
 尤其是两个生命周期不等的情况。
 
