@@ -363,9 +363,29 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 
 那到底怎样做更好呢？
 
-个人认为：**并不是所有销毁工作都适合写在dealloc里**。
+个人认为：**并不是所有的销毁工作都适合写在dealloc里**。
 
-比如上面的ServerConnection的例子，业务逻辑自己肯定知道应该在哪里
+dealloc最擅长的事，自然还是释放内存，比如调用各个成员变量的release（在ARC中这个release也省了）。但是，如果要依赖dealloc来维护一些作用域更广（超出当前对象的生命周期）的变量或过程，则不是一个好的做法。原因至少有两点：
 
-尤其是两个生命周期不等的情况。
+- dealloc的执行可能会被延迟；
+- 无法控制dealloc是否会在主线程被调用。
 
+比如上面的ServerConnection的例子，业务逻辑自己肯定知道应该在什么时机去停止监听网络状态，而不应该依赖dealloc来完成它。
+
+在上面两个例子中，问题出现的根源在于异步任务。我们仔细思考后会发现，在讨论异步任务的时候，我们必须关注一个至关重要的原则，即条件失效原则。当然，这也是一个显而易见的原则：当异步任务真正执行的时候，境况很可能已与当初调度它时不同。
+
+在第一个Service Binding的例子中，异步绑定过程开始调度的时候（bindService被调用的时候），Activity还处于Running状态（在执行onResume）；而绑定过程结束的时候，Activity却已经从Running状态中退出（执行过了onPause）。
+
+在第二个网络监听的例子中，当异步重连任务结束的时候，外部对于ServerConnection实例的引用已经不复存在，实例马上就要进行销毁过程了。而造成停止监听时的Run Loop也不再是原来那一个了。
+
+在开始下一节有关异步任务的正式讨论之前，我们有必要对iOS和Android中经常碰到的异步任务做一个总结。
+
+1. 网络请求​。由于网络请求耗时较长，通常网络请求接口都是异步的（例如iOS的NSURLConnection，或Android的Volley）。一般情况下，我们在主线程启动一个网络请求，然后被动地等待请求成功或者失败的回调发生（意味着这个异步任务的结束），最后根据回调结果更新UI。从启动网络请求，到获知明确的请求结果（成功或失败），时间是不确定的。
+
+2. 通过线程池机制主动创建的异步任务。对于那些需要较长时间同步执行的任务（比如读取磁盘文件这种延迟高的操作，或者执行大计算量的任务），我们通常依靠系统提供的线程池机制把这些任务调度到异步线程去执行，以节约主线程宝贵的计算时间。关于这些线程池机制，在iOS中，我们有GCD（dispatch_async）、NSOperationQueue；在Android上，我们有JDK提供的传统的ExecutorService，也有Android SDK提供的AsyncTask​。不管是哪种实现形式，我们都为自己创造了大量的异步任务。
+
+3. Run Loop调度任务。在iOS上，我们可以调用NSObject的若干个performSelectorXXX方法将任务调度到目标线程的Run Loop上去异步执行（performSelectorInBackground:withObject:除外）。类似地，在Android上，我们可以调用Handler的post/sendMessage方法或者View的post方法将任务异步调度到对应的Run Loop上去。实际上，不管是iOS还是Android系统，一般客户端的基础架构中都会为主线程创建一个Run Loop（当然，非主线程也可以创建Run Loop）。它可以让长时间存活的线程周期性地处理短任务，而在没有任务可执行的时候进入睡眠，既能高效及时地响应事件处理，又不会耗费多余的CPU时间。同时，更重要的一点是，Run Loop模式让客户端的多线程编程逻辑变得简单。客户端编程比服务器编程的多线程模型要简单，很大程度上要归功于Run Loop的存在。在客户端编程中，当我们想执行一个长的同步任务时，一般先通过前面（2）中提及的线程池机制将它调度到异步线程，在任务执行完后，再通过本节提到的Run Loop调度方法或者GCD等机制重新调度回主线程的Run Loop上。这种“主线程->异步线程->主线程”的模式，基本成为了客户端多线程编程的基本模式。这种模式规避了多个线程之间可能存在的复杂的同步操作，使处理变得简单。在后面第（三）部分——执行多个异步任务，我们还有机会继续探讨这个话题。
+
+4. 延迟调度任务。这一类任务在指定的某个时间段之后，或者在指定的某个时间点开始执行，可以用于实现类似重试队列之类的结构。延迟调度任务有多种实现方式。​在iOS中，NSObject的performSelector:withObject:afterDelay:，GCD的dispatch_after或dispatch_time，另外，还有NSTimer；在Android中，Handler的postDelayed和postAtTime，View的postDelayed，还有老式的java.util.Timer，此外，安卓中还有一个比较重的调度器——能在任务调度执行时自动唤醒程序的AlarmService。
+
+5. 跟系统实现相关的异步行为。这类行为种类繁多，这里举几个例子。比如：安卓中的startActivity是一个异步操作，从调用后到Activity被创建和显示，仍有一小段时间。再如：Activity和Fragment的生命周期是异步的，即使Activity的生命周期已经到了onResume，你还是不知道它所包含的Fragment的生命周期走到哪一步了。再比如，在iOS上和Android系统上都有监听网络状态变化的机制，网络状态变化回调何时执行就是一个异步事件。这些异步行为同样需要统一完整的异步处理。
