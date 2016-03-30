@@ -238,7 +238,7 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 }
 {% endhighlight %}
 
-上述代码封装了Reachability类的接口。当调用者想开始网络状态监听时，就调用startNetworkMonitoring；监听完毕就调用stopNetworkMonitoring。我们设想中的长连接正好需要创建和调用Reachability对象来处理网络状态监听。它的代码的相关部分可能会如下所示（类名ServerConnection；头文件代码忽略）：
+上述代码封装了Reachability类的接口。当调用者想开始网络状态监听时，就调用startNetworkMonitoring；监听完毕就调用stopNetworkMonitoring。我们设想中的长连接正好需要创建和调用Reachability对象来处理网络状态变化。它的代码的相关部分可能会如下所示（类名ServerConnection；头文件代码忽略）：
 
 {% highlight objc linenos %}
 //
@@ -306,7 +306,7 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 
 我们来重新分析一下Reachability的代码来得到这件事发生的最终影响。这个情况发生时，Reachability的stopNetworkMonitoring在非主线程被调用了。而当初startNetworkMonitoring被调用时却是在主线程的。现在我们看到了，startNetworkMonitoring和stopNetworkMonitoring如果前后不在同一个线程上执行，那么在它们的实现中的CFRunLoopGetCurrent()就不是指的同一个Run Loop。这已经在逻辑上发生“错误”了。在这个“错误”发生之后，stopNetworkMonitoring中的SCNetworkReachabilityUnscheduleFromRunLoop就没有能够把Reachability实例从原来在主线程上调度的那个Run Loop上卸下来。也就是说，此后如果网络状态再次发生变化，那么ReachabilityCallback仍然会执行，但这时原来的Reachability实例已经被销毁过了（由ServerConnection的销毁而销毁）。按上述代码的目前的实现，这时ReachabilityCallback中的info参数指向了一个已经被释放的Reachability对象，那么接下来发生崩溃也就不足为奇了。
 
-有人可能会说，dispatch_async执行的block中不应该直接引用self，而应该使用weak strong dance. 也就是把dispatch_async那段代码改成下面的形式：
+有人可能会说，dispatch_async执行的block中不应该直接引用self，而应该使用weak-strong dance. 也就是把dispatch_async那段代码改成下面的形式：
 
 {% highlight objc linenos %}
         __weak ServerConnection *wself = self;
@@ -316,7 +316,7 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
         });
 {% endhighlight %}
 
-这样改有没有效果呢？根据我们上面的分析，显然没有。ServerConnection的dealloc仍然在非主线程上执行，上面的问题也依然存在。weak strong dance被设计用来解决循环引用的问题，但不能解决我们这里碰到的异步任务延迟的问题。
+这样改有没有效果呢？根据我们上面的分析，显然没有。ServerConnection的dealloc仍然在非主线程上执行，上面的问题也依然存在。weak-strong dance被设计用来解决循环引用的问题，但不能解决我们这里碰到的异步任务延迟的问题。
 
 实际上，即使把它改成下面的形式，仍然没有效果。
 
@@ -329,7 +329,7 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 
 即使拿weak引用（wself）来调用reconnect方法，它一旦执行，也会造成ServerConnection的引用计数增加。结果仍然是dealloc在非主线程上执行。
 
-那既然dealloc在非主线程上执行会造成问题，那我们强制把dealloc里面的代码调用到主线程执行好了，如下：
+那既然dealloc在非主线程上执行会造成问题，那我们强制把dealloc里面的代码调度到主线程执行好了，如下：
 
 {% highlight objc linenos %}
 - (void)dealloc {
@@ -367,16 +367,16 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 
 dealloc最擅长的事，自然还是释放内存，比如调用各个成员变量的release（在ARC中这个release也省了）。但是，如果要依赖dealloc来维护一些作用域更广（超出当前对象的生命周期）的变量或过程，则不是一个好的做法。原因至少有两点：
 
-- dealloc的执行可能会被延迟；
+- dealloc的执行可能会被延迟，无法确保精确的执行时间；
 - 无法控制dealloc是否会在主线程被调用。
 
 比如上面的ServerConnection的例子，业务逻辑自己肯定知道应该在什么时机去停止监听网络状态，而不应该依赖dealloc来完成它。
 
-在上面两个例子中，问题出现的根源在于异步任务。我们仔细思考后会发现，在讨论异步任务的时候，我们必须关注一个至关重要的原则，即条件失效原则。当然，这也是一个显而易见的原则：当异步任务真正执行的时候，境况很可能已与当初调度它时不同。
+在上面两个例子中，问题出现的根源在于异步任务。我们仔细思考后会发现，在讨论异步任务的时候，我们必须关注一个至关重要的原则，即**条件失效原则**。当然，这也是一个显而易见的原则：当一个异步任务真正执行的时候（或者一个异步事件真正发生的时候），境况很可能已与当初调度它时不同。
 
-在第一个Service Binding的例子中，异步绑定过程开始调度的时候（bindService被调用的时候），Activity还处于Running状态（在执行onResume）；而绑定过程结束的时候，Activity却已经从Running状态中退出（执行过了onPause）。
+在第一个Service Binding的例子中，异步绑定过程开始调度的时候（bindService被调用的时候），Activity还处于Running状态（在执行onResume）；而绑定过程结束的时候（onServiceConnected被调用的时候），Activity却已经从Running状态中退出（执行过了onPause，已经又解除绑定了）。
 
-在第二个网络监听的例子中，当异步重连任务结束的时候，外部对于ServerConnection实例的引用已经不复存在，实例马上就要进行销毁过程了。而造成停止监听时的Run Loop也不再是原来那一个了。
+在第二个网络监听的例子中，当异步重连任务结束的时候，外部对于ServerConnection实例的引用已经不复存在，实例马上就要进行销毁过程了。继而造成停止监听时的Run Loop也不再是原来那一个了。
 
 在开始下一节有关异步任务的正式讨论之前，我们有必要对iOS和Android中经常碰到的异步任务做一个总结。
 
@@ -384,8 +384,8 @@ dealloc最擅长的事，自然还是释放内存，比如调用各个成员变�
 
 2. 通过线程池机制主动创建的异步任务。对于那些需要较长时间同步执行的任务（比如读取磁盘文件这种延迟高的操作，或者执行大计算量的任务），我们通常依靠系统提供的线程池机制把这些任务调度到异步线程去执行，以节约主线程宝贵的计算时间。关于这些线程池机制，在iOS中，我们有GCD（dispatch_async）、NSOperationQueue；在Android上，我们有JDK提供的传统的ExecutorService，也有Android SDK提供的AsyncTask​。不管是哪种实现形式，我们都为自己创造了大量的异步任务。
 
-3. Run Loop调度任务。在iOS上，我们可以调用NSObject的若干个performSelectorXXX方法将任务调度到目标线程的Run Loop上去异步执行（performSelectorInBackground:withObject:除外）。类似地，在Android上，我们可以调用Handler的post/sendMessage方法或者View的post方法将任务异步调度到对应的Run Loop上去。实际上，不管是iOS还是Android系统，一般客户端的基础架构中都会为主线程创建一个Run Loop（当然，非主线程也可以创建Run Loop）。它可以让长时间存活的线程周期性地处理短任务，而在没有任务可执行的时候进入睡眠，既能高效及时地响应事件处理，又不会耗费多余的CPU时间。同时，更重要的一点是，Run Loop模式让客户端的多线程编程逻辑变得简单。客户端编程比服务器编程的多线程模型要简单，很大程度上要归功于Run Loop的存在。在客户端编程中，当我们想执行一个长的同步任务时，一般先通过前面（2）中提及的线程池机制将它调度到异步线程，在任务执行完后，再通过本节提到的Run Loop调度方法或者GCD等机制重新调度回主线程的Run Loop上。这种“主线程->异步线程->主线程”的模式，基本成为了客户端多线程编程的基本模式。这种模式规避了多个线程之间可能存在的复杂的同步操作，使处理变得简单。在后面第（三）部分——执行多个异步任务，我们还有机会继续探讨这个话题。
+3. Run Loop调度任务。在iOS上，我们可以调用NSObject的若干个performSelectorXXX方法将任务调度到目标线程的Run Loop上去异步执行（performSelectorInBackground:withObject:除外）。类似地，在Android上，我们可以调用Handler的post/sendMessage方法或者View的post方法将任务异步调度到对应的Run Loop上去。实际上，不管是iOS还是Android系统，一般客户端的基础架构中都会为主线程创建一个Run Loop（当然，非主线程也可以创建Run Loop）。它可以让长时间存活的线程周期性地处理短任务，而在没有任务可执行的时候进入睡眠，既能高效及时地响应事件处理，又不会耗费多余的CPU时间。同时，更重要的一点是，Run Loop模式让客户端的多线程编程逻辑变得简单。客户端编程比服务器编程的多线程模型要简单，很大程度上要归功于Run Loop的存在。在客户端编程中，当我们想执行一个长的同步任务时，一般先通过前面（2）中提及的线程池机制将它调度到异步线程，在任务执行完后，再通过本节提到的Run Loop调度方法或者GCD等机制重新调度回主线程的Run Loop上。这种“**主线程->异步线程->主线程**”的模式，基本成为了客户端多线程编程的基本模式。这种模式规避了多个线程之间可能存在的复杂的同步操作，使处理变得简单。在后面第（三）部分——执行多个异步任务，我们还有机会继续探讨这个话题。
 
 4. 延迟调度任务。这一类任务在指定的某个时间段之后，或者在指定的某个时间点开始执行，可以用于实现类似重试队列之类的结构。延迟调度任务有多种实现方式。​在iOS中，NSObject的performSelector:withObject:afterDelay:，GCD的dispatch_after或dispatch_time，另外，还有NSTimer；在Android中，Handler的postDelayed和postAtTime，View的postDelayed，还有老式的java.util.Timer，此外，安卓中还有一个比较重的调度器——能在任务调度执行时自动唤醒程序的AlarmService。
 
-5. 跟系统实现相关的异步行为。这类行为种类繁多，这里举几个例子。比如：安卓中的startActivity是一个异步操作，从调用后到Activity被创建和显示，仍有一小段时间。再如：Activity和Fragment的生命周期是异步的，即使Activity的生命周期已经到了onResume，你还是不知道它所包含的Fragment的生命周期走到哪一步了。再比如，在iOS上和Android系统上都有监听网络状态变化的机制，网络状态变化回调何时执行就是一个异步事件。这些异步行为同样需要统一完整的异步处理。
+5. 跟系统实现相关的异步行为。这类行为种类繁多，这里举几个例子。比如：安卓中的startActivity是一个异步操作，从调用后到Activity被创建和显示，仍有一小段时间。再如：Activity和Fragment的生命周期是异步的，即使Activity的生命周期已经到了onResume，你还是不知道它所包含的Fragment的生命周期走到哪一步了（以及它的view层次有没有被创建出来）。再比如，在iOS和Android系统上都有监听网络状态变化的机制（本文前面的第二个代码例子中就有涉及），网络状态变化回调何时执行就是一个异步事件。这些异步行为同样需要统一完整的异步处理。
