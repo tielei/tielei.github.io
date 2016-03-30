@@ -1,0 +1,19 @@
+---
+layout: post
+category: "ios"
+title: "苹果IAP开发中的那些坑和掉单问题"
+date: 2016-03-20 19:09:00 +0800
+published: true
+---
+
+相信很多iOS App的开发者，特别是手游开发者，都接触过苹果支付IAP（[In-App Purchase](https://developer.apple.com/library/ios/documentation/NetworkingInternet/Conceptual/StoreKitGuide/Introduction.html){:target="_blank"}）。相信使用了IAP的App，都经历过“掉单”问题。
+
+什么是“掉单”呢？简言之就是用户付款买金币，钱扣了，金币却没到账。
+
+掉单一旦发生，用户通常会很愤怒地来找客服。然后客服只能找开发人员把金币给用户手动加上。
+
+<!--more-->
+
+显然，伤害用户的体验，特别是伤害付费用户的体验，是一件相当糟糕的事情。
+
+我们在[微爱](http://welove520.com){:target="_blank"}软件的开发过程中，IAP支付的掉单问题也困扰了我们很久。直到去年第四季度的一次优化，才算是彻底解决了掉单问题。
