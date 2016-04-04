@@ -97,25 +97,53 @@ IAP同国内的支付宝、微信支付都是用于支付的平台接口，但�
 
 在这篇文章最后，我再把IAP开发中值得开发者关心的其它一些问题，补充说明一下。
 
-#### IAP旧接口的安全问题
+#### IAP接口的安全问题
 
-IAP在iOS 7.0之前的验证方式（transactionReceipt）存在严重的安全问题。下面是一些资料：
-
-* <http://www.zdnet.com/article/apple-ios-in-app-purchases-hacked-everything-is-free-video/>{:target="_blank"}
-* <https://in-appstore.com/>{:target="_blank"}
-* <http://www.zdnet.com/article/apple-adds-unique-identifiers-to-fight-ios-in-app-purchase-hack/>{:target="_blank"}
-* <http://smartphones.wonderhowto.com/how-to/apples-fix-failed-app-purchases-still-free-with-hack-0138104/>{:target="_blank"}
-
-早在2012年，IAP被俄罗斯的工程师ZonD80破解。比如第一篇文章就提到：
+早在2012年7月，IAP曾被俄罗斯的工程师ZonD80破解。比如，这篇早期的文章（<http://www.zdnet.com/article/apple-ios-in-app-purchases-hacked-everything-is-free-video/>{:target="_blank"}）声称：
 
 > Apple iOS in-app purchases hacked; everything is free.
 
+虽然苹果官方宣称在iOS 6中解决了这个漏洞，但有些借此盈利的人手里应该还保留有旧的iOS版本，也许淘宝上那些可以打折为游戏充值的店铺今天仍然在利用这个漏洞（虽然没有直接证据，但很值得怀疑）。
 
+作为iOS开发者，应该尽量做到：
 
-#### SKProductsRequest的问题
+* 使用最新的App Receipt验证方式，不要再使用旧的transactionReceipt的验证方式。
+* 使用服务器验证receipt而不是客户端本地验证。
+* App客户端和App服务器之间的通信通道要加密。
 
+#### SKProductsRequest接口的问题
 
+提交IAP支付请求（SKPaymentQueue的addPayment:接口），需要传入一个SKPayment实例。这个实例可以从productIdentifier创建（SKPayment的类方法paymentWithProductIdentifier:），但是这个接口从iOS 5.0开始过期了。
+
+按苹果的建议，应该使用SKPayment的paymentWithProduct:方法来创建SKPayment实例。然而这个接口需要传入一个SKProduct实例。而要获取一个SKProduct实例，必须先使用SKProductsRequest向App Store查询产品信息。苹果建议的购买流程是，先使用SKProductsRequest查询到所有售卖物品的产品信息（以SKProduct实例来表达），然后再展示商店购买页面。
+
+这个获取SKProduct实例的过程有几个不足之处：
+
+1. SKProductsRequest查询的过程会增加好几秒的耗时（在国内经常在5秒以上）。这会导致商店售卖页面本身显示出来要经历很长的时间。
+2. SKProductsRequest的接口的设计很有问题，竟然没有失败回调。如果网络不好，就没有回调。调用起来很不方便。
+
+因此，最终我们决定还是使用已经过期的SKPayment的paymentWithProduct:来创建一个SKPayment实例。这样可以做到先将商店购买UI快速展示出来。
 
 #### 关于退款的订单
 
+用户退款的订单有可能依然在App Receipt中出现，因此App服务器实现验证的时候需要能够识别出已经被退款的订单，不至于给退款的订单发货（甚至发两次货）。
+
+被退款订单的唯一标识是：它带有一个cancellation_date字段。
+
+#### 验证请求的结果返回
+
+iOS 7新的App Receipt在验证完毕后，App Store服务器返回的验证结果（status）所表达的含义发生了变化。如果返回status=0，那么只是表示整个App的票据验证通过，并不表示票据中所包含的每个IAP receipt都有效。甚至有可能App Receipt中根本不包含任何IAP receipt，status也可以是0。
+
+另外，由于App Receipt可能包含多个IAP receipt，因此App服务器并不能保证所有IAP receipt一次性都发货成功。
+
+所以，在设计发货请求的响应参数的时候，一定要能够区分出如下几种case：
+
+* 全部发货成功；
+* 部分发货成功；
+* 根本不存在IAP receipt
+
 #### 验证请求延迟大
+
+App服务器在国内连接App Store服务器进行票据验证时，网络延迟较大。一般最低也要200多ms，而在大的时候能超过7s。
+
+因此，如果有条件，建议给App Store服务器的验证请求加上国际代理（可以使用HTTP的CONNECT方法）。
