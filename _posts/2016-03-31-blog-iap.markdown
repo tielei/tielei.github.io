@@ -85,7 +85,7 @@ IAP同国内的支付宝、微信支付都是用于支付的平台接口，但�
 
 当利用App Receipt来验证IAP订单时，我们需要验证的是在App Reciept中所包含的IAP receipt列表（in_app节点）。与iOS 7.0之前的方式相比，这种方式的明显区别是：它包含一个IAP receipt列表而不是仅仅一个IAP receipt。这使它本身带有某种程度的自动修复的特性。如果用户某次支付没有被正确完成也没有后续被成功恢复，那么当他在同一个手机设备上产生下一次支付行为时，App Receipt中就会包含前后两次支付的IAP receipt，这就能让上次失败的订单一并恢复。
 
-第3点，发货任务的重启动不直接依赖IAP的事务机制。按照正常的IAP事务机制，如果用户已经付款成功，但最终没有发货成功（finishTransaction:最终没有被调用），那么下次App启动后在SKPaymentQueue的addTransactionObserver:调用后，paymentQueue:updatedTransactions:会自动被回调，从而使得之前未完成的事务得以继续。但是，这一机制是否一如既往地如苹果宣称的那样值得信赖，我个人是持怀疑态度的。在我们以前使用IAP的过程中，我们总是会碰到一些无法被IAP的事务机制恢复的情况。在iOS平台提供的API中，总是存在一些令人不安的设计，这也算是其中之一。
+第3点，发货任务的重启动不直接依赖IAP的事务机制。按照正常的IAP事务机制，如果用户已经付款成功，但最终没有发货成功（finishTransaction:最终没有被调用），那么下次App启动后在SKPaymentQueue的addTransactionObserver:调用后，paymentQueue:updatedTransactions:会自动被回调，从而使得之前未完成的事务得以继续。但是，这一机制是否一如既往地如苹果宣称的那样值得信赖，我个人是持怀疑态度的。在我们以前使用IAP的过程中，我们总是会碰到一些无法被IAP的事务机制恢复的情况。在iOS平台提供的API中，总是存在一些令人不安的设计（实际上其它平台上也不乏这样的例子），这也算是其中之一。
 
 我们采取的策略是，把自动重试的发货任务的执行状态在客户端持久化下来。当下次App启动时，我们可以依赖之前持久化的发货任务状态来重启发货任务，而不必依赖苹果的事务机制来重启任务。注意：我们之前描述的发货任务的启动逻辑已经可以确保发货任务同时不会启动多次。
 
@@ -95,4 +95,27 @@ IAP同国内的支付宝、微信支付都是用于支付的平台接口，但�
 
 经过上述对IAP实现的优化，我们几乎再也没有碰到过毫无缘由的掉单现象。
 
-在这篇文章最后，我
+在这篇文章最后，我再把IAP开发中值得开发者关心的其它一些问题，补充说明一下。
+
+#### IAP旧接口的安全问题
+
+IAP在iOS 7.0之前的验证方式（transactionReceipt）存在严重的安全问题。下面是一些资料：
+
+* <http://www.zdnet.com/article/apple-ios-in-app-purchases-hacked-everything-is-free-video/>{:target="_blank"}
+* <https://in-appstore.com/>{:target="_blank"}
+* <http://www.zdnet.com/article/apple-adds-unique-identifiers-to-fight-ios-in-app-purchase-hack/>{:target="_blank"}
+* <http://smartphones.wonderhowto.com/how-to/apples-fix-failed-app-purchases-still-free-with-hack-0138104/>{:target="_blank"}
+
+早在2012年，IAP被俄罗斯的工程师ZonD80破解。比如第一篇文章就提到：
+
+> Apple iOS in-app purchases hacked; everything is free.
+
+
+
+#### SKProductsRequest的问题
+
+
+
+#### 关于退款的订单
+
+#### 验证请求延迟大
