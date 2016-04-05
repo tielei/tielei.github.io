@@ -8,7 +8,7 @@ published: true
 
 本文是我打算完成的一个系列《iOS和Android开发中的异步处理》的开篇。
 
-从2012年开始开发[微爱](http://welove520.com){:target="_blank"}软件的第一个iOS版本计算，我和整个团队接触iOS和Android开发已经差不多有4年时间了。现在回过头来总结，iOS和Android开发与其它领域的开发相比，有什么独特的特征呢？一个合格的iOS或Android开发人员，应该具备哪些技能呢？
+从2012年开始开发[微爱](http://welove520.com){:target="_blank"}App的第一个iOS版本计算，我和整个团队接触iOS和Android开发已经差不多有4年时间了。现在回过头来总结，iOS和Android开发与其它领域的开发相比，有什么独特的特征呢？一个合格的iOS或Android开发人员，应该具备哪些技能呢？
 
 <!--more-->
 
