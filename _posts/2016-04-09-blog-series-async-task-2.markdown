@@ -23,13 +23,99 @@ published: true
 * 中间回调
 * 结果回调
 
-中间回调可能在异步任务开始执行时，执行进度有更新时，或者其它重要的中间事件发生时被调用；而结果回调要等异步任务执行到最后，有了一个明确的结果（成功了或失败了），才被调用。结果回调的发生意味着某次异步接口的执行结束。
+中间回调可能在异步任务开始执行时，执行进度有更新时，或者其它重要的中间事件发生时被调用；而结果回调要等异步任务执行到最后，有了一个明确的结果（成功了或失败了），才被调用。结果回调的发生意味着此次异步接口的执行结束。
 
 “必须产生结果回调”，这条规则并不像想象的那样容易遵守。它要求在异步接口的实现中无论发生什么异常状况，都要在有限的时间内产生结果回调。比如，接收到非法的输入参数，程序的运行时异常，任务中途被取消，任务超时，以及种种意想不到的错误，这些都是发生异常状况的例子。
 
 这里的难度就在于，接口的实现要慎重对待所有可能的错误情况，不管哪种情况出现，都必须产生结果回调。否则，可能会导致调用方整个执行流程的中断。
 
 
-#### 重视错误回调；错误码应该尽量详细
+#### 重视失败回调；错误码应该尽量详细
 
+先看一段代码例子：
+
+{% highlight java linenos %}
+public interface Downloader {
+    /**
+     * 设置监听器.
+     * @param listener
+     */
+    void setListener(DownloadListener listener);
+    /**
+     * 启动资源的下载.
+     * @param url 要下载的资源地址.
+     * @param localPath 资源下载后要存储的本地位置.
+     */
+    void startDownload(String url, String localPath);
+}
+
+public interface DownloadListener {
+    /**
+     * 下载结束回调.
+     * @param result 下载结果. true表示下载成功, false表示下载失败.
+     * @param url 资源地址
+     * @param localPath 下载后的资源存储位置. 只有result=true时才有效.
+     */
+    void downloadFinished(boolean result, String url, String localPath);
+
+    /**
+     * 下载进度回调.
+     * @param url 资源地址
+     * @param downloadedSize 已下载大小.
+     * @param totalSize 资源总大小.
+     */
+    void downloadProgress(String url, long downloadedSize, long totalSize);
+}
+{% endhighlight %}
+
+这段代码定义了一个下载器接口，用于从指定的URL下载资源。这是一个异步接口，调用者通过调用startDownload启动下载任务，然后等着回调。当downloadFinished回调发生时，表示下载任务结束了。如果返回result=true，则说明下载成功，否则说明下载失败。
+
+这个接口定义基本上算是比较完备了，能够完成下载资源的基本流程：我们能通过这个接口启动一个下载任务，在下载过程中获得下载进度（中间回调），在下载成功时能够取得结果，在下载失败时也能得到通知（成功和失败都属于结果回调）。但是，如果在下载失败时我们想获知更详细的失败原因，那么现在这个接口就做不到了。
+
+具体的失败原因，上层调用者可能需要处理，也可能不需要处理。在下载失败后，上层的展示层可能只是为下载失败的资源做一个标记，而不区分是如何失败的。当然也有可能展示层会提示用户具体的失败原因，让用户接下来知道需要做哪些操作来恢复错误，比如，由于“网络不可用”而造成的下载失败，可以提示用户切换到更好的网络；而由于“存储空间不足”而造成的下载失败，则可以提示用户清理存储空间。总之，应该由上层调用者来决定是否显示具体错误原因，以及如何显示，而不是在定义底层回调接口时就决定。
+
+因此，结果回调中的失败回调，应该返回尽可能详细的错误码，让调用者在发生错误时有更多的选择。这一规则，对于library的开发者来说，似乎毋庸置疑。但是，对于上层应用的开发者来说，往往得不到足够的重视。返回详尽的错误码，意味着在失败处理上花费更多的工夫。为了“节省时间”和“实用主义”，人们往往对于错误情况采取“简单处理”，但却给日后的扩展带来了隐患。
+
+对于上面下载器接口的代码例子，为了能返回更详尽的错误码，其中DownloadListener的代码修改如下：
+
+{% highlight java linenos %}
+public interface DownloadListener {
+    /**
+     * 错误码定义
+     */
+    public static final int SUCCESS = 0;//成功
+    public static final int INVALID_PARAMS = 1;//输入参数有误
+    public static final int NETWORK_UNAVAILABLE = 2;//网络不可用
+    public static final int UNKNOWN_HOST = 3;//域名解析失败
+    public static final int CONNECT_TIMEOUT = 4;//连接超时
+    public static final int HTTP_STATUS_NOT_OK = 5;//下载请求返回非200
+    public static final int SDCARD_NOT_EXISTS = 6;//SD卡不存在(下载的资源没地方存)
+    public static final int SD_CARD_NO_SPACE_LEFT = 7;//SD卡空间不足(下载的资源没地方存)
+    public static final int READ_ONLY_FILE_SYSTEM = 8;//文件系统只读(下载的资源没地方存)
+    public static final int LOCAL_IO_ERROR = 9;//本地SD存取有关的错误
+    public static final int UNKNOWN_FAILED = 10;//其它未知错误
+
+    /**
+     * 下载成功回调.
+     * @param url 资源地址
+     * @param localPath 下载后的资源存储位置.
+     */
+    void downloadSuccess(String url, String localPath);
+    /**
+     * 下载失败回调.
+     * @param url 资源地址
+     * @param errorCode 错误码.
+     * @param errorMessage 错误信息简短描述. 供调用者理解错误原因.
+     */
+    void downloadFailed(String url, int errorCode, String errorMessage);
+
+    /**
+     * 下载进度回调.
+     * @param url 资源地址
+     * @param downloadedSize 已下载大小.
+     * @param totalSize 资源总大小.
+     */
+    void downloadProgress(String url, long downloadedSize, long totalSize);
+}
+{% endhighlight %}
 
