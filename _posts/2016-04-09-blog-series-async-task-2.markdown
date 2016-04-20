@@ -119,3 +119,9 @@ public interface DownloadListener {
 }
 {% endhighlight %}
 
+关于失败回调，这里恰好有一个iOS的反例。
+
+
+----
+看起来可能略显啰嗦，似乎用了大部分篇幅在说明一些显而易见的东西。
+
