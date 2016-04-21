@@ -30,7 +30,7 @@ published: true
 这里的难度就在于，接口的实现要慎重对待所有可能的错误情况，不管哪种情况出现，都必须产生结果回调。否则，可能会导致调用方整个执行流程的中断。
 
 
-#### 重视失败回调；错误码应该尽量详细
+#### 重视失败回调 & 错误码应该尽量详细
 
 先看一段代码例子：
 
@@ -119,7 +119,114 @@ public interface DownloadListener {
 }
 {% endhighlight %}
 
-关于失败回调，这里恰好有一个iOS的反例。
+在iOS中，Foundation Framework对于程序错误有一个系统的封装：NSError。它能以非常通用的方式来封装错误码，而且能将错误分成不同的domain。NSError就很适合用在这种失败回调接口的定义中。
+
+#### 调用接口和回调接口应该有清晰的对应关系
+
+我们通过一个真实的接口定义的例子来分析这个问题。
+
+下面是来自国内某广告平台的视频广告积分墙的接口定义代码（为展示清楚，省略了一些无关的代码）。
+
+{% highlight objc linenos %}
+@class IndependentVideoManager;
+
+@protocol IndependentVideoManagerDelegate <NSObject>
+@optional
+#pragma mark - independent video present callback 视频广告展现回调
+
+...
+
+#pragma mark - point manage callback 积分管理
+
+...
+
+#pragma mark - independent video status callback 积分墙状态
+/**
+ *  视频广告墙是否可用。
+ *  Called after get independent video enable status.
+ *
+ *  @param IndependentVideoManager
+ *  @param enable
+ */
+- (void)ivManager:(IndependentVideoManager *)manager
+didCheckEnableStatus:(BOOL)enable;
+
+/**
+ *  是否有视频广告可以播放。
+ *  Called after check independent video available.
+ *
+ *  @param IndependentVideoManager
+ *  @param available
+ */
+- (void)ivManager:(IndependentVideoManager *)manager
+isIndependentVideoAvailable:(BOOL)available;
+
+
+@end
+
+@interface IndependentVideoManager : NSObject {
+    
+}
+
+@property(nonatomic,assign)id<IndependentVideoManagerDelegate>delegate;
+
+...
+
+#pragma mark - init 初始化相关方法
+
+...
+
+#pragma mark - independent video present 积分墙展现相关方法
+/**
+ *  使用App的rootViewController来弹出并显示列表积分墙。
+ *  Present independent video in ModelView way with App's rootViewController.
+ *
+ *  @param type 积分墙类型
+ */
+- (void)presentIndependentVideo;
+
+...
+
+#pragma mark - independent video status 检查视频积分墙是否可用
+/**
+ *  是否有视频广告可以播放
+ *  check independent video available.
+ */
+- (void)checkVideoAvailable;
+
+#pragma mark - point manage 积分管理相关广告
+/**
+ *  检查已经得到的积分，成功或失败都会回调代理中的相应方法。
+ *
+ */
+- (void)checkOwnedPoint;
+/**
+ *  消费指定的积分数目，成功或失败都会回调代理中的相应方法（请特别注意参数类型为unsigned int，需要消费的积分为非负值）。
+ *
+ *  @param point 要消费积分的数目
+ */
+- (void)consumeWithPointNumber:(NSUInteger)point;
+
+@end
+{% endhighlight %}
+
+我们来分析一下在这段接口定义中调用接口和回调接口之间的对应关系。
+
+使用IndependentVideoManager可以调用的接口，除了初始化的接口之外，主要有这几个：
+
+* 弹出并显示视频 (presentIndependentVideo)
+* 检查是否有视频广告可以播放 (checkVideoAvailable)
+* 积分管理 (checkOwnedPoint和consumeWithPointNumber:)
+
+而回调接口 (IndependentVideoManagerDelegate) 可以分为下面几类：
+
+* 视频广告展现回调类
+* 积分墙状态类 (ivManager:didCheckEnableStatus:和ivManager:isIndependentVideoAvailable:)
+* 积分管理类
+
+总体来说，这里的对应关系还是比较清楚的，这三类回调接口基本上与前面的三部分调用接口能够一一对应上。
+
+不过，积分墙状态类的回调接口还有一点让人迷惑的细节：看起来调用者在调用checkVideoAvailable后，会收到积分墙状态类的两个回调 (ivManager:didCheckEnableStatus:和ivManager:isIndependentVideoAvailable:)；但是，从接口可能表达的含义来看，调用checkVideoAvailable是为了检查是否有视频广告可以播放，那么ivManager:isIndependentVideoAvailable:。
 
 
 ----
