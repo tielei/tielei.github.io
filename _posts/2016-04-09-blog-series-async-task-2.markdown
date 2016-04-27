@@ -230,13 +230,75 @@ isIndependentVideoAvailable:(BOOL)available;
 
 不过，积分墙状态类的回调接口还是有一点让人迷惑的细节：看起来调用者在调用checkVideoAvailable后，会收到积分墙状态类的两个回调 (ivManager:didCheckEnableStatus:和ivManager:isIndependentVideoAvailable:)；但是，从接口名称所能表达的含义来看，调用checkVideoAvailable是为了检查是否有视频广告可以播放，那么单单是ivManager:isIndependentVideoAvailable:这一个回调接口就能返回所需要的结果了，似乎不太需要ivManager:didCheckEnableStatus:。而从ivManager:didCheckEnableStatus所表达的含义（视频广告墙是否可用）上来看，它似乎在任何调用接口被调用时都可能会执行，而不应该只对应checkVideoAvailable。这里的回调接口设计，在与调用接口的对应关系上，是令人困惑的。
 
-#### 成功结果回调和失败错误回调应该彼此互斥
+#### 成功结果回调和失败结果回调应该彼此互斥
+
+当一个异步任务结束时，它或者调用成功结果回调，或者调用失败结果回调。两者只能调用其一。这是显而易见的要求，但若在实现时不加注意，却也可能无法遵守这一要求。
 
 假设我们前面提到的Downloader接口在最终产生结果回调的时候代码如下：
 
 {% highlight java linenos %}
-    boolean success = download
+    int errorCode = parseDownloadResult(result);
+    if (errorCode == SUCCESS) {
+        listener.downloadSuccess(url, localPath)
+    }
+    else {
+        listener.downloadFailed(url, errorCode, getErrorMessage(errorCode));
+    }
 {% endhighlight %}
+
+进而我们发现，为了能够达到“必须产生结果回调”的目标，我们应该考虑parseDownloadResult这个方法抛异常的可能。于是，我们修改代码如下：
+
+{% highlight java linenos %}
+    try {
+        int errorCode = parseDownloadResult(result);
+        if (errorCode == SUCCESS) {
+            listener.downloadSuccess(url, localPath)
+        }
+        else {
+            listener.downloadFailed(url, errorCode, getErrorMessage(errorCode));
+        }
+    }
+    catch (Exception e) {
+        listener.downloadFailed(url, UNKNOWN_FAILED, getErrorMessage(UNKNOWN_FAILED));
+    }
+}
+{% endhighlight %}
+
+代码改成这样，已经能保证即使出现了意想不到的情况，也能对调用者产生一个失败回调。
+
+但是，这也带来另一个问题：如果在调用listener.downloadSuccess或listener.downloadFailed的时候，回调接口的实现代码抛了异常呢？那会造成再多调用一次listener.downloadFailed。于是，成功结果回调和失败结果回调不再彼此互斥地被调用了：或者成功和失败回调都发生了，或者连续两次失败回调。
+
+回调接口的实现是归调用者负责的部分，难道调用者犯的错误也需要我们来考虑？首先，这主要还应该由上层调用者来负责处理，回调接口的实现者实在不应该在异常发生时再把异常抛回来。但是，底层接口的设计者也应当尽力而为。作为接口的设计者，通常不能
+预期调用者会怎么表现，如果在异常发生时，我们能保证当前错误不至于让整个流程中断和卡死，岂不是更好呢？于是，我们可以尝试把代码改成如下这样：
+
+{% highlight java linenos %}
+    int errorCode;
+    try {
+        errorCode = parseDownloadResult(result);
+    }
+    catch (Exception e) {
+        errorCode = UNKNOWN_FAILED;
+    }
+    if (errorCode == SUCCESS) {
+        try {
+            listener.downloadSuccess(url, localPath)
+        }
+        catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+    else {
+        try {
+            listener.downloadFailed(url, errorCode, getErrorMessage(errorCode));
+        }
+        catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+}
+{% endhighlight %}
+
+#### 回调的线程模型
 
 
 ----
