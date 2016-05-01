@@ -315,10 +315,393 @@ isIndependentVideoAvailable:(BOOL)available;
 
 显然第3种模式最为灵活，因为它包含了前两种。
 
-为了能把执行代码调度到其它线程，我们需要使用在上一篇[iOS和Android开发中的异步处理（一）——概述](/posts/blog-series-async-task-1.html)最后“Run Loop调度任务”那一小节提到的技术。我们有必要对线程调度的实质加以理解。
+为了能把执行代码调度到其它线程，我们需要使用在上一篇[iOS和Android开发中的异步处理（一）——概述](/posts/blog-series-async-task-1.html)最后提到的一些技术，比如iOS中的GCD、NSOperationQueue、performSelectorXXX方法，Android中的ExecutorService、AsyncTask、Handler，等等（注意：ExecutorService不能用于调度到主线程，只能用于调度到异步线程）。我们有必要对线程调度的实质加以理解：能把一段代码调度到某一个线程去执行，前提条件是那个线程有一个Event Loop。这个Loop顾名思义，就是一个循环，它不停地从消息队列里取出消息，然后处理。我们做线程调度的时候，相当于向这个队列里发送消息。这个队列本身在系统实现里已经保证是线程安全的（Thread Safe Queue），因此调用者就规避了线程安全问题。在客户端开发中，系统都会为主线程创建一个Loop，但非主线程则需要开发者自己来使用适当的技术进行创建。
 
-在客户端编程的大多数情况下，我们一般会希望结果回调发生在主线程上，因为我们一般会在这个时机更新UI。
+在客户端编程的大多数情况下，我们一般会希望结果回调发生在主线程上，因为我们一般会在这个时机更新UI。而中间回调在哪个线程上执行，则取决于具体情况。在前面Downloader的例子中，中间回调downloadProgress是为了回传下载进度，下载进度一般也是为了在UI上展示，因此downloadProgress也应该调度到主线程上执行。
+
+#### 回调的context参数
+
+在调用一个异步接口的时候，我们经常需要临时保存一份跟该次调用相关的上下文数据，等到异步任务执行完回调发生的时候，我们能重新拿到这份上下文数据。
+
+我们还是以前面的下载器为例。为了能清晰地讨论各种情况，我们这里假设一个稍微复杂一点的例子。假设我们要下载多个表情包，每个表情包包含多个表情图片文件，下载完全部表情图片之后，我们需要把表情包安装到本地（可能是修改本地数据库的操作），以便用户能够在输入面板中使用它们。
+
+假设表情包的数据结构定义如下：
+
+{% highlight java linenos %}
+public class EmojiPackage {
+    /**
+     * 表情包ID
+     */
+    public long emojiId;
+    /**
+     * 表情包图片列表
+     */
+    public List<String> emojiUrls;
+}
+{% endhighlight %}
+
+在下载过程中，我们需要保存一个如下的上下文结构：
+
+{% highlight java linenos %}
+public class EmojiDownloadContext {
+    /**
+     * 当前在下载的表情包
+     */
+    public EmojiPackage emojiPackage;
+    /**
+     * 已经下载完的表情图片计数
+     */
+    public int downloadedEmoji;
+    /**
+     * 下载到表情包本地地址
+     */
+    public List<String> localPathList = new ArrayList<String>();
+}
+{% endhighlight %}
+
+再假设我们要实现的表情包下载器遵守下面的接口定义：
+
+{% highlight java linenos %}
+public interface EmojiDownloader {
+    /**
+     * 开始下载指定的表情包
+     * @param emojiPackage
+     */
+    void startDownloadEmoji(EmojiPackage emojiPackage);
+
+    /**
+     * 这里回调相关的接口, 忽略. 不是我们要讨论的重点.
+     */
+    //TODO: 回调接口相关定义
+}
+{% endhighlight %}
+
+如果利用前面已有的Downloader接口来完成表情包下载器的实现，那么根据传递上下文的方式不同，我们可能会产生三种不同的做法：
+
+（1）全局保存一份上下文。
+
+注意所说的“全局”，是针对一个表情包下载器内部而言的。代码如下：
+
+{% highlight java linenos %}
+public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
+    /**
+     * 全局保存一份的表情包下载上下文.
+     */
+    private EmojiDownloadContext downloadContext;
+    private Downloader downloader;
+
+    public MyEmojiDownloader() {
+        //实例化有一个下载器.
+        downloader = new MyDownloader();
+        downloader.setListener(this);
+    }
+
+    @Override
+    public void startDownloadEmoji(EmojiPackage emojiPackage) {
+        if (downloadContext == null) {
+            //创建下载上下文数据
+            downloadContext = new EmojiDownloadContext();
+            downloadContext.emojiPackage = emojiPackage;
+            //启动第0个表情图片文件的下载
+            downloader.startDownload(emojiPackage.emojiUrls.get(0),
+                    getLocalPathForEmoji(emojiPackage, 0));
+        }
+    }
+
+    @Override
+    public void downloadSuccess(String url, String localPath) {
+        downloadContext.localPathList.add(localPath);
+        downloadContext.downloadedEmoji++;
+        EmojiPackage emojiPackage = downloadContext.emojiPackage;
+        if (downloadContext.downloadedEmoji < emojiPackage.emojiUrls.size()) {
+            //还没下载完, 继续下载下一个表情图片
+            String nextUrl = emojiPackage.emojiUrls.get(downloadContext.downloadedEmoji);
+            downloader.startDownload(nextUrl,
+                    getLocalPathForEmoji(emojiPackage, downloadContext.downloadedEmoji));
+        }
+        else {
+            //已经下载完
+            installEmojiPackageLocally(emojiPackage, downloadContext.localPathList);
+            downloadContext = null;
+        }
+    }
+
+    @Override
+    public void downloadFailed(String url, int errorCode, String errorMessage) {
+        ...
+    }
+
+    @Override
+    public void downloadProgress(String url, long downloadedSize, long totalSize) {
+        ...
+    }
+
+    /**
+     * 计算表情包中第i个表情图片文件的下载地址.
+     */
+    private String getLocalPathForEmoji(EmojiPackage emojiPackage, int i) {
+        ...
+    }
+
+    /**
+     * 把表情包安装到本地
+     */
+    private void installEmojiPackageLocally(EmojiPackage emojiPackage, List<String> localPathList) {
+        ...
+    }
+}
+{% endhighlight %}
+
+这种做法的缺点是：同时只能有一个表情包在下载。必须要等到前一个表情包下载完毕之后才能开始下载新的一个表情包。
+
+虽然这种“全局保存一份上下文”的做法有这样的缺点，但是在某些情况下，我们却只能采取这种方式。这个后面会再提到。
+
+（2）用映射关系来保存上下文
+
+在现有Downloader接口的定义下，我们只能用URL来作为这份映射关系的索引。由于一个表情包包含多个URL，因此我们必须为每一个URL都索引一份上下文。代码如下：
+
+{% highlight java linenos %}
+public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
+    /**
+     * 保存上下文的映射关系.
+     * URL -> EmojiDownloadContext
+     */
+    private Map<String, EmojiDownloadContext> downloadContextMap;
+    private Downloader downloader;
+
+    public MyEmojiDownloader() {
+        downloadContextMap = new HashMap<String, EmojiDownloadContext>();
+        //实例化有一个下载器.
+        downloader = new MyDownloader();
+        downloader.setListener(this);
+    }
+
+    @Override
+    public void startDownloadEmoji(EmojiPackage emojiPackage) {
+        //创建下载上下文数据
+        EmojiDownloadContext downloadContext = new EmojiDownloadContext();
+        downloadContext.emojiPackage = emojiPackage;
+        //为每一个URL创建映射关系
+        for (String emojiUrl : emojiPackage.emojiUrls) {
+            downloadContextMap.put(emojiUrl, downloadContext);
+        }
+        //启动第0个表情图片文件的下载
+        downloader.startDownload(emojiPackage.emojiUrls.get(0),
+                getLocalPathForEmoji(emojiPackage, 0));
+    }
+
+    @Override
+    public void downloadSuccess(String url, String localPath) {
+        EmojiDownloadContext downloadContext = downloadContextMap.get(url);
+        downloadContext.localPathList.add(localPath);
+        downloadContext.downloadedEmoji++;
+        EmojiPackage emojiPackage = downloadContext.emojiPackage;
+        if (downloadContext.downloadedEmoji < emojiPackage.emojiUrls.size()) {
+            //还没下载完, 继续下载下一个表情图片
+            String nextUrl = emojiPackage.emojiUrls.get(downloadContext.downloadedEmoji);
+            downloader.startDownload(nextUrl,
+                    getLocalPathForEmoji(emojiPackage, downloadContext.downloadedEmoji));
+        }
+        else {
+            //已经下载完
+            installEmojiPackageLocally(emojiPackage, downloadContext.localPathList);
+            //为每一个URL删除映射关系
+            for (String emojiUrl : emojiPackage.emojiUrls) {
+                downloadContextMap.remove(emojiUrl);
+            }
+        }
+    }
+
+    @Override
+    public void downloadFailed(String url, int errorCode, String errorMessage) {
+        ...
+    }
+
+    @Override
+    public void downloadProgress(String url, long downloadedSize, long totalSize) {
+        ...
+    }
+
+    /**
+     * 计算表情包中第i个表情图片文件的下载地址.
+     */
+    private String getLocalPathForEmoji(EmojiPackage emojiPackage, int i) {
+        ...
+    }
+
+    /**
+     * 把表情包安装到本地
+     */
+    private void installEmojiPackageLocally(EmojiPackage emojiPackage, List<String> localPathList) {
+        ...
+    }
+}
+{% endhighlight %}
+
+这种做法也有它的缺点：并不能每次都能找到恰当的能唯一索引上下文数据的变量。在这个表情包下载器的例子中，能唯一标识下载的变量本来应该是emojiId，但在Downloader的回调接口中却无法取到这个值，因此只能改用每个URL都建立一份到上下文数据的索引。这样带来的结果就是：如果两个不同表情包包含了某个相同的URL，就可能出现冲突。另外，这种做法的实现比较复杂。
+
+然而，在实际中很多情况下，调用者都不得不采取这种做法。
+
+（3）为每一个异步任务创建一个接口实例。
+
+通常来讲，按照我们的设计初衷，我们希望只实例化一个接口实例（即一个Downloader实例），然后用这一个实例来启动多个异步任务。但是，如果我们每次启动新的异步任务都是新创建一个接口实例，那么异步任务就和接口实例个数一一对应了，这样就能将异步任务的上下文数据存到这个接口实例中。代码如下：
+
+{% highlight java linenos %}
+public class MyEmojiDownloader implements EmojiDownloader {
+    @Override
+    public void startDownloadEmoji(EmojiPackage emojiPackage) {
+        //创建下载上下文数据
+        EmojiDownloadContext downloadContext = new EmojiDownloadContext();
+        downloadContext.emojiPackage = emojiPackage;
+        //为每一次下载创建一个新的Downloader
+        final EmojiUrlDownloader downloader = new EmojiUrlDownloader();
+        //将上下文数据存到downloader实例中
+        downloader.downloadContext = downloadContext;
+
+        downloader.setListener(new DownloadListener() {
+            @Override
+            public void downloadSuccess(String url, String localPath) {
+                EmojiDownloadContext downloadContext = downloader.downloadContext;
+                downloadContext.localPathList.add(localPath);
+                downloadContext.downloadedEmoji++;
+                EmojiPackage emojiPackage = downloadContext.emojiPackage;
+                if (downloadContext.downloadedEmoji < emojiPackage.emojiUrls.size()) {
+                    //还没下载完, 继续下载下一个表情图片
+                    String nextUrl = emojiPackage.emojiUrls.get(downloadContext.downloadedEmoji);
+                    downloader.startDownload(nextUrl,
+                            getLocalPathForEmoji(emojiPackage, downloadContext.downloadedEmoji));
+                }
+                else {
+                    //已经下载完
+                    installEmojiPackageLocally(emojiPackage, downloadContext.localPathList);
+                }
+            }
+
+            @Override
+            public void downloadFailed(String url, int errorCode, String errorMessage) {
+                //TODO:
+            }
+
+            @Override
+            public void downloadProgress(String url, long downloadedSize, long totalSize) {
+                //TODO:
+            }
+        });
+
+        //启动第0个表情图片文件的下载
+        downloader.startDownload(emojiPackage.emojiUrls.get(0),
+                getLocalPathForEmoji(emojiPackage, 0));
+    }
+
+    private static class EmojiUrlDownloader extends MyDownloader {
+        public EmojiDownloadContext downloadContext;
+    }
+
+    /**
+     * 计算表情包中第i个表情图片文件的下载地址.
+     */
+    private String getLocalPathForEmoji(EmojiPackage emojiPackage, int i) {
+        ...
+    }
+
+    /**
+     * 把表情包安装到本地
+     */
+    private void installEmojiPackageLocally(EmojiPackage emojiPackage, List<String> localPathList) {
+        ...
+    }
+}
+{% endhighlight %}
+
+这样做自然缺点也很明显：为每一个下载任务都创建一个下载器实例，这有违我们对于Downloader接口的设计初衷。这会创建大量多余的实例。
+
+上面三种做法，每一种都不是很理想。根源在于：底层的异步接口Downloader不能支持上下文（context）传递（注意，它跟Android系统中的Context没有什么关系）。这样的上下文参数有很多种叫法：
+
+* context（上下文）
+* callbackData
+* 透传参数
+* cookie
+* userInfo
+
+不管这个参数叫什么名字，它的作用都是一样的：在调用异步接口的时候传递进去，当回调接口发生时它还能传回来。这个上下文参数由上层调用者定义，底层接口的实现并不用理解它的含义，而只是负责透传。
+
+支持了上下文参数的Downloader接口改动如下：
+
+{% highlight java linenos %}
+public interface Downloader {
+    /**
+     * 设置回调监听器.
+     * @param listener
+     */
+    void setListener(DownloadListener listener);
+    /**
+     * 启动资源的下载.
+     * @param url 要下载的资源地址.
+     * @param localPath 资源下载后要存储的本地位置.
+     * @param contextData 上下文数据, 在回调接口中会透传回去.可以是任何类型.
+     */
+    void startDownload(String url, String localPath, Object contextData);
+}
+public interface DownloadListener {
+    /**
+     * 错误码定义
+     */
+    public static final int SUCCESS = 0;//成功
+    public static final int INVALID_PARAMS = 1;//输入参数有误
+    public static final int NETWORK_UNAVAILABLE = 2;//网络不可用
+    public static final int UNKNOWN_HOST = 3;//域名解析失败
+    public static final int CONNECT_TIMEOUT = 4;//连接超时
+    public static final int HTTP_STATUS_NOT_OK = 5;//下载请求返回非200
+    public static final int SDCARD_NOT_EXISTS = 6;//SD卡不存在(下载的资源没地方存)
+    public static final int SD_CARD_NO_SPACE_LEFT = 7;//SD卡空间不足(下载的资源没地方存)
+    public static final int READ_ONLY_FILE_SYSTEM = 8;//文件系统只读(下载的资源没地方存)
+    public static final int LOCAL_IO_ERROR = 9;//本地SD存取有关的错误
+    public static final int UNKNOWN_FAILED = 10;//其它未知错误
+
+    /**
+     * 下载成功回调.
+     * @param url 资源地址
+     * @param localPath 下载后的资源存储位置.
+     * @param contextData 上下文数据.
+     */
+    void downloadSuccess(String url, String localPath, Object contextData);
+    /**
+     * 下载失败回调.
+     * @param url 资源地址
+     * @param errorCode 错误码.
+     * @param errorMessage 错误信息简短描述. 供调用者理解错误原因.
+     * @param contextData 上下文数据.
+     */
+    void downloadFailed(String url, int errorCode, String errorMessage, Object contextData);
+
+    /**
+     * 下载进度回调.
+     * @param url 资源地址
+     * @param downloadedSize 已下载大小.
+     * @param totalSize 资源总大小.
+     * @param contextData 上下文数据.
+     */
+    void downloadProgress(String url, long downloadedSize, long totalSize, Object contextData);
+}
+{% endhighlight %}
+
+利用这个最新的Downloader接口，前面的表情包下载器就有了第4种实现方式。
+
+（4）利用支持上下文传递的异步接口
+
+
+
+不知道回调上下文为何物的人给我们出的难题。
+
+一个好的回调接口定义，都应该具有传递上下文的能力。
+
+iOS上context是strong还是weak？
 
 ----
-看起来可能略显啰嗦，似乎用了大部分篇幅在说明一些显而易见的东西。工作多年的人也未必有清晰的套路。
+看起来可能略显啰嗦，似乎用了大部分篇幅在说明一些显而易见的东西。
 
+如果仔细审查，我们会发现，我们平常接触到的很多接口，都不是我们最理想的形式。
+
+定义接口需要深厚的功力，工作多年的人也鲜有人做到。更可怕的是，大部分甚至根本意识不到这件事是难还是容易。
+
+本文并未教授如何针对具体问题进行接口设计。
