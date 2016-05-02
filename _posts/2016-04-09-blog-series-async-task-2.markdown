@@ -456,7 +456,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
 
 虽然这种“全局保存一份上下文”的做法有这样的缺点，但是在某些情况下，我们却只能采取这种方式。这个后面会再提到。
 
-（2）用映射关系来保存上下文
+（2）用映射关系来保存上下文。
 
 在现有Downloader接口的定义下，我们只能用URL来作为这份映射关系的索引。由于一个表情包包含多个URL，因此我们必须为每一个URL都索引一份上下文。代码如下：
 
@@ -615,7 +615,7 @@ public class MyEmojiDownloader implements EmojiDownloader {
 
 这样做自然缺点也很明显：为每一个下载任务都创建一个下载器实例，这有违我们对于Downloader接口的设计初衷。这会创建大量多余的实例。
 
-上面三种做法，每一种都不是很理想。根源在于：底层的异步接口Downloader不能支持上下文（context）传递（注意，它跟Android系统中的Context没有什么关系）。这样的上下文参数有很多种叫法：
+上面三种做法，每一种都不是很理想。根源在于：底层的异步接口Downloader不能支持上下文（context）传递（注意，它跟Android系统中的Context没有什么关系）。这样的上下文参数不同的人有很不同的叫法：
 
 * context（上下文）
 * callbackData
@@ -687,11 +687,82 @@ public interface DownloadListener {
 
 利用这个最新的Downloader接口，前面的表情包下载器就有了第4种实现方式。
 
-（4）利用支持上下文传递的异步接口
+（4）利用支持上下文传递的异步接口。
+
+代码如下：
+
+{% highlight java linenos %}
+public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
+    private Downloader downloader;
+
+    public MyEmojiDownloader() {
+        //实例化有一个下载器.
+        downloader = new MyDownloader();
+        downloader.setListener(this);
+    }
+
+    @Override
+    public void startDownloadEmoji(EmojiPackage emojiPackage) {
+        //创建下载上下文数据
+        EmojiDownloadContext downloadContext = new EmojiDownloadContext();
+        downloadContext.emojiPackage = emojiPackage;
+        //启动第0个表情图片文件的下载, 上下文参数传递进去
+        downloader.startDownload(emojiPackage.emojiUrls.get(0),
+                getLocalPathForEmoji(emojiPackage, 0),
+                downloadContext);
+
+    }
+
+    @Override
+    public void downloadSuccess(String url, String localPath, Object contextData) {
+        //通过回调接口的contextData参数做Down-casting获得上下文参数
+        EmojiDownloadContext downloadContext = (EmojiDownloadContext) contextData;
+
+        downloadContext.localPathList.add(localPath);
+        downloadContext.downloadedEmoji++;
+        EmojiPackage emojiPackage = downloadContext.emojiPackage;
+        if (downloadContext.downloadedEmoji < emojiPackage.emojiUrls.size()) {
+            //还没下载完, 继续下载下一个表情图片
+            String nextUrl = emojiPackage.emojiUrls.get(downloadContext.downloadedEmoji);
+            downloader.startDownload(nextUrl,
+                    getLocalPathForEmoji(emojiPackage, downloadContext.downloadedEmoji),
+                    downloadContext);
+        }
+        else {
+            //已经下载完
+            installEmojiPackageLocally(emojiPackage, downloadContext.localPathList);
+        }
+    }
+
+    @Override
+    public void downloadFailed(String url, int errorCode, String errorMessage, Object contextData) {
+        ...
+    }
+
+    @Override
+    public void downloadProgress(String url, long downloadedSize, long totalSize, Object contextData) {
+        ...
+    }
+
+    /**
+     * 计算表情包中第i个表情图片文件的下载地址.
+     */
+    private String getLocalPathForEmoji(EmojiPackage emojiPackage, int i) {
+        ...
+    }
+
+    /**
+     * 把表情包安装到本地
+     */
+    private void installEmojiPackageLocally(EmojiPackage emojiPackage, List<String> localPathList) {
+        ...
+    }
+}
+{% endhighlight %}
 
 
 
-不知道回调上下文为何物的人给我们出的难题。
+不知道回调上下文为何物的人无意中给我们出的难题。
 
 一个好的回调接口定义，都应该具有传递上下文的能力。
 
