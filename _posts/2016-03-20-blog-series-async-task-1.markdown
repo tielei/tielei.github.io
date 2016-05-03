@@ -56,11 +56,13 @@ public class MyActivity extends Activity {
         @Override
         ​public void onServiceDisconnected(ComponentName name) {
             //解除Activity与Service的引用和监听关系
+            ...
         }
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             //建立Activity与Service的引用和监听关系
+            ...
         }​​
     }
 
@@ -77,6 +79,8 @@ public class MyActivity extends Activity {
         super.onPause();
 
         //解除Activity与Service的引用和监听关系
+        ...
+
         unbindService(serviceConnection);
     }
 }
@@ -101,12 +105,14 @@ public class MyActivity extends Activity {
         @Override
         ​public void onServiceDisconnected(ComponentName name) {
             //解除Activity与Service的引用和监听关系
+            ...
         }
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             if (running) {
-                //建立Activity与Service的引用和监听关系                
+                //建立Activity与Service的引用和监听关系
+                ...                
             }
         }​​
     }
@@ -126,6 +132,8 @@ public class MyActivity extends Activity {
         running = false;
 
         //解除Activity与Service的引用和监听关系
+        ...
+
         unbindService(serviceConnection);
 
     }
@@ -372,7 +380,7 @@ dealloc最擅长的事，自然还是释放内存，比如调用各个成员变�
 
 另外，对于dealloc可能会在异步线程执行的问题，我们应该特别关注它。对于不同类型的对象，我们应该采取不同的态度。比如，对于起到View角色的对象，我们的正确态度是：**不应该允许dealloc在异步线程执行的情况出现**。为了避免出现这种情况，我们应该竭力避免在View里面直接启动异步任务，或者避免在生命周期更长的异步任务中对View产生强引用。
 
-在上面两个例子中，问题出现的根源在于异步任务。我们仔细思考后会发现，在讨论异步任务的时候，我们必须关注一个至关重要的原则，即**条件失效原则**。当然，这也是一个显而易见的原则：当一个异步任务真正执行的时候（或者一个异步事件真正发生的时候），境况很可能已与当初调度它时不同。
+在上面两个例子中，问题出现的根源在于异步任务。我们仔细思考后会发现，在讨论异步任务的时候，我们必须关注一个至关重要的问题，即**条件失效问题**。当然，这也是一个显而易见的问题：当一个异步任务真正执行的时候（或者一个异步事件真正发生的时候），境况很可能已与当初调度它时不同，或者说，它当初赖以执行或发生的条件可能已经失效。
 
 在第一个Service Binding的例子中，异步绑定过程开始调度的时候（bindService被调用的时候），Activity还处于Running状态（在执行onResume）；而绑定过程结束的时候（onServiceConnected被调用的时候），Activity却已经从Running状态中退出（执行过了onPause，已经又解除绑定了）。
 
