@@ -34,19 +34,17 @@ published: true
 
 * （一）概述——​介绍常见的异步任务，以及为什么这个话题如此重要。
 
-* （二）​异步任务的回调——讨论跟回调有关的一些话题，比如线程模型，接口设计，透传参数，监听问题等
+* （二）​异步任务的回调——讨论跟回调接口有关的一系列话题，比如错误处理、线程模型、透传参数、回调顺序等。
 
 * （三）执行多个异步任务​
 
 * （四）异步任务和队列
 
-* （五）异步任务和start ID​——讨论如何对异步任务进行versioning的问题，以及它的必要性
+* （五）异步任务的取消和暂停，以及start ID​——Cancel掉正在执行的异步任务，实际上非常困难。
 
-* （六）异步任务的取消和暂停——cancel掉正在执行的异步任务，实际上非常困难
+* （六）关于封屏与不封屏
 
-* （七）关于封屏与不封屏
-
-* （八）Android Service实例分析——Android Service提供了一个执行异步任务的严密框架 （后面也许会再多提供一些其它的实例分析，加入到这个系列中来）
+* （七）Android Service实例分析——Android Service提供了一个执行异步任务的严密框架 （后面也许会再多提供一些其它的实例分析，加入到这个系列中来）。
 
 显然，本篇blog要讨论的是提纲的第（一）部分。
 
@@ -58,11 +56,13 @@ public class MyActivity extends Activity {
         @Override
         ​public void onServiceDisconnected(ComponentName name) {
             //解除Activity与Service的引用和监听关系
+            ...
         }
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             //建立Activity与Service的引用和监听关系
+            ...
         }​​
     }
 
@@ -79,6 +79,8 @@ public class MyActivity extends Activity {
         super.onPause();
 
         //解除Activity与Service的引用和监听关系
+        ...
+
         unbindService(serviceConnection);
     }
 }
@@ -103,12 +105,14 @@ public class MyActivity extends Activity {
         @Override
         ​public void onServiceDisconnected(ComponentName name) {
             //解除Activity与Service的引用和监听关系
+            ...
         }
 
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             if (running) {
-                //建立Activity与Service的引用和监听关系                
+                //建立Activity与Service的引用和监听关系
+                ...                
             }
         }​​
     }
@@ -128,6 +132,8 @@ public class MyActivity extends Activity {
         running = false;
 
         //解除Activity与Service的引用和监听关系
+        ...
+
         unbindService(serviceConnection);
 
     }
@@ -372,7 +378,9 @@ dealloc最擅长的事，自然还是释放内存，比如调用各个成员变�
 
 比如上面的ServerConnection的例子，业务逻辑自己肯定知道应该在什么时机去停止监听网络状态，而不应该依赖dealloc来完成它。
 
-在上面两个例子中，问题出现的根源在于异步任务。我们仔细思考后会发现，在讨论异步任务的时候，我们必须关注一个至关重要的原则，即**条件失效原则**。当然，这也是一个显而易见的原则：当一个异步任务真正执行的时候（或者一个异步事件真正发生的时候），境况很可能已与当初调度它时不同。
+另外，对于dealloc可能会在异步线程执行的问题，我们应该特别关注它。对于不同类型的对象，我们应该采取不同的态度。比如，对于起到View角色的对象，我们的正确态度是：**不应该允许dealloc在异步线程执行的情况出现**。为了避免出现这种情况，我们应该竭力避免在View里面直接启动异步任务，或者避免在生命周期更长的异步任务中对View产生强引用。
+
+在上面两个例子中，问题出现的根源在于异步任务。我们仔细思考后会发现，在讨论异步任务的时候，我们必须关注一个至关重要的问题，即**条件失效问题**。当然，这也是一个显而易见的问题：当一个异步任务真正执行的时候（或者一个异步事件真正发生的时候），境况很可能已与当初调度它时不同，或者说，它当初赖以执行或发生的条件可能已经失效。
 
 在第一个Service Binding的例子中，异步绑定过程开始调度的时候（bindService被调用的时候），Activity还处于Running状态（在执行onResume）；而绑定过程结束的时候（onServiceConnected被调用的时候），Activity却已经从Running状态中退出（执行过了onPause，已经又解除绑定了）。
 
@@ -390,4 +398,4 @@ dealloc最擅长的事，自然还是释放内存，比如调用各个成员变�
 
 5. 跟系统实现相关的异步行为。这类行为种类繁多，这里举几个例子。比如：安卓中的startActivity是一个异步操作，从调用后到Activity被创建和显示，仍有一小段时间。再如：Activity和Fragment的生命周期是异步的，即使Activity的生命周期已经到了onResume，你还是不知道它所包含的Fragment的生命周期走到哪一步了（以及它的view层次有没有被创建出来）。再比如，在iOS和Android系统上都有监听网络状态变化的机制（本文前面的第二个代码例子中就有涉及），网络状态变化回调何时执行就是一个异步事件。这些异步行为同样需要统一完整的异步处理。
 
-最后，我还需要再澄清一个关于题目的问题。​这个系列虽命名为《iOS和Android开发中的异步处理》，但是对于异步任务的处理这个话题，实际中并不局限于“iOS或Android开发”中，比如在服务器的开发中也是有可能遇到的。在这个系列中我所要表达的，更多的是一个抽象的逻辑，并不局限于iOS或Android某种具体的技术。只是，在iOS和Android的前端开发中，异步任务被应用得如此广泛，以至于我们应该把它当做一个更普遍的问题来对待了。
+本文在最后还需要澄清一个关于题目的问题。​这个系列虽命名为《iOS和Android开发中的异步处理》，但是对于异步任务的处理这个话题，实际中并不局限于“iOS或Android开发”中，比如在服务器的开发中也是有可能遇到的。在这个系列中我所要表达的，更多的是一个抽象的逻辑，并不局限于iOS或Android某种具体的技术。只是，在iOS和Android的前端开发中，异步任务被应用得如此广泛，以至于我们应该把它当做一个更普遍的问题来对待了。

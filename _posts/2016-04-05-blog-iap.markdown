@@ -117,10 +117,7 @@ IAP同国内的支付宝、微信支付都是用于支付的平台接口，但�
 
 按苹果的建议，应该使用SKPayment的paymentWithProduct:方法来创建SKPayment实例。然而这个接口需要传入一个SKProduct实例。而要获取一个SKProduct实例，必须先使用SKProductsRequest向App Store查询产品信息。苹果建议的购买流程是，先使用SKProductsRequest查询到所有售卖物品的产品信息（以SKProduct实例来表达），然后再展示商店购买页面。
 
-这个获取SKProduct实例的过程有几个不足之处：
-
-1. SKProductsRequest查询的过程会增加好几秒的耗时（在国内经常在5秒以上）。这会导致商店售卖页面本身显示出来要经历很长的时间。
-2. SKProductsRequest的接口的设计很有问题，竟然没有失败回调。如果网络不好，就没有回调。调用起来很不方便。
+这个获取SKProduct实例的过程，苹果官方之所以如此设计，可能是为了确保App内的商店购买页面对于商品的展示与iTunesConnect后台的配置保持完全一致。但是，SKProductsRequest查询的过程会增加好几秒的耗时（在国内经常在5秒以上）。这会导致商店购买页面本身显示出来非常慢。
 
 因此，最终我们决定还是使用已经过期的SKPayment的paymentWithProductIdentifier:来创建一个SKPayment实例。这样可以做到先将商店购买UI快速展示出来。
 
