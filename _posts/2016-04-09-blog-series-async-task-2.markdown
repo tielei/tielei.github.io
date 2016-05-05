@@ -768,9 +768,20 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
 
 我们再从上下文传递能力的角度来重新审视一下一些系统的回调接口定义。比如说iOS中UIAlertViewDelegate的alertView:clickedButtonAtIndex:，或者UITableViewDataSource的tableView:cellForRowAtIndexPath:，这些回调接口的第一个参数都会回传那个UIView本身的实例（其实UIKit中大多数回调接口都以类似的方式定义）。这起到了一定的上下文传递的作用，它可以用来区分不同的UIView实例，但不能用来区分同一个UIView实例内的不同调用。如果同一个页面内需要先后多次弹出UIAlertView框，那么我们每次都需要新创建一个UIAlertView实例，然后在回调中就能根据传回的UIAlertView实例来区分是哪一次弹框。这类似于前面讨论过的第3种做法。UIView本身还预定义了一个用于传递整型上下文的tag参数，但如果我们想传递更多的其它类型的上下文，那么我们就只能像前述第3种做法一样，继承一个UIView的自己的子类出来，在里面放置上下文参数。
 
-UIView每次新的展示都创建一个实例，这本身并不能被视为过多的开销。毕竟，UIView被设计出来就是为了一个个创建出来并添加到View层次中加以展示的。但是，我们在前面提到的IndependentVideoManager的例子就不同了。它的回调接口被设计成第一个参数回传IndependentVideoManager实例，比如ivManager:isIndependentVideoAvailable:。可以猜测这样的回调接口定义必定是参考了UIKit，但IndependentVideoManager的情况明显不同，它一般只需要创建一个实例，然后通过在同一个实例上多次调用接口来多次播放广告。这里更需要区分的同一个实例上多次不同的调用，每次调用携带了哪些上下文参数。这里真正需要的上下文传递的能力，跟我们上面讨论的第4种做法类似，而类似UIKit那样提供的上下文传递能力是不够的。
+UIView每次新的展示都创建一个实例，这本身并不能被视为过多的开销。毕竟，UIView被设计出来就是为了一个个创建出来并添加到View层次中加以展示的。但是，我们在前面提到的IndependentVideoManager的例子就不同了。它的回调接口被设计成第一个参数回传IndependentVideoManager实例，比如ivManager:isIndependentVideoAvailable:，可以猜测这样的回调接口定义必定是参考了UIKit。但IndependentVideoManager的情况明显不同，它一般只需要创建一个实例，然后通过在同一个实例上多次调用接口来多次播放广告。这里更需要区分的是同一个实例上多次不同的调用，每次调用携带了哪些上下文参数。这里真正需要的上下文传递能力，跟我们上面讨论的第4种做法类似，而像UIKit那样的接口定义方式提供的上下文传递能力是不够的。
 
-再来看一下Android上的例子。
+再来看一下Android上的例子。Android上的回调接口以listener的形式呈现，典型的代码如下：
+
+{% highlight java linenos %}
+Button button = (Button) findViewById(...);
+button.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        ...
+    }
+});
+{% endhighlight %}
+
 
 
 iOS上context是strong还是weak？
