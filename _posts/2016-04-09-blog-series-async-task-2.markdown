@@ -230,6 +230,8 @@ isIndependentVideoAvailable:(BOOL)available;
 
 不过，积分墙状态类的回调接口还是有一点让人迷惑的细节：看起来调用者在调用checkVideoAvailable后，会收到积分墙状态类的两个回调 (ivManager:didCheckEnableStatus:和ivManager:isIndependentVideoAvailable:)；但是，从接口名称所能表达的含义来看，调用checkVideoAvailable是为了检查是否有视频广告可以播放，那么单单是ivManager:isIndependentVideoAvailable:这一个回调接口就能返回所需要的结果了，似乎不太需要ivManager:didCheckEnableStatus:。而从ivManager:didCheckEnableStatus所表达的含义（视频广告墙是否可用）上来看，它似乎在任何调用接口被调用时都可能会执行，而不应该只对应checkVideoAvailable。这里的回调接口设计，在与调用接口的对应关系上，是令人困惑的。
 
+此外，IndependentVideoManager的接口在上下文参数的设计上也有一些问题，本文后面会再次提到。
+
 #### 成功结果回调和失败结果回调应该彼此互斥
 
 当一个异步任务结束时，它或者调用成功结果回调，或者调用失败结果回调。两者只能调用其一。这是显而易见的要求，但若在实现时不加注意，却也可能无法遵守这一要求。
@@ -319,7 +321,7 @@ isIndependentVideoAvailable:(BOOL)available;
 
 在客户端编程的大多数情况下，我们一般会希望结果回调发生在主线程上，因为我们一般会在这个时机更新UI。而中间回调在哪个线程上执行，则取决于具体情况。在前面Downloader的例子中，中间回调downloadProgress是为了回传下载进度，下载进度一般也是为了在UI上展示，因此downloadProgress也应该调度到主线程上执行。
 
-#### 回调的context参数
+#### 回调的context参数（透传参数）
 
 在调用一个异步接口的时候，我们经常需要临时保存一份跟该次调用相关的上下文数据，等到异步任务执行完回调发生的时候，我们能重新拿到这份上下文数据。
 
@@ -618,8 +620,8 @@ public class MyEmojiDownloader implements EmojiDownloader {
 上面三种做法，每一种都不是很理想。根源在于：底层的异步接口Downloader不能支持上下文（context）传递（注意，它跟Android系统中的Context没有什么关系）。这样的上下文参数不同的人有很不同的叫法：
 
 * context（上下文）
-* callbackData
 * 透传参数
+* callbackData
 * cookie
 * userInfo
 
@@ -760,11 +762,16 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
 }
 {% endhighlight %}
 
+显然，最后第4种实现方法更合理一些，代码更紧凑，也没有前面3种的缺点。但是，它要求我们调用的底层异步接口对上下文传递有完善的支持。在实际情况中，我们需要调用的接口大都是既定的，无法修改的。如果我们碰到的接口对上下文参数传递支持得不好，我们就别无选择，只能采取前面3种做法中的一种。总之，我们在这里讨论前3种做法并非自寻烦恼，而是为了应对那些对回调上下文支持不够的接口，而这些接口的设计者通常是无意中给我们出了这样的难题。
 
+现在，我们可以很容易得出结论：一个好的回调接口定义，应该具有传递上下文的能力。
 
-不知道回调上下文为何物的人无意中给我们出的难题。
+我们再从上下文传递能力的角度来重新审视一下一些系统的回调接口定义。比如说iOS中UIAlertViewDelegate的alertView:clickedButtonAtIndex:，或者UITableViewDataSource的tableView:cellForRowAtIndexPath:，这些回调接口的第一个参数都会回传那个UIView本身的实例（其实UIKit中大多数回调接口都以类似的方式定义）。这起到了一定的上下文传递的作用，它可以用来区分不同的UIView实例，但不能用来区分同一个UIView实例内的不同调用。如果同一个页面内需要先后多次弹出UIAlertView框，那么我们每次都需要新创建一个UIAlertView实例，然后在回调中就能根据传回的UIAlertView实例来区分是哪一次弹框。这类似于前面讨论过的第3种做法。UIView本身还预定义了一个用于传递整型上下文的tag参数，但如果我们想传递更多的其它类型的上下文，那么我们就只能像前述第3种做法一样，继承一个UIView的自己的子类出来，在里面放置上下文参数。
 
-一个好的回调接口定义，都应该具有传递上下文的能力。
+UIView每次新的展示都创建一个实例，这本身并不能被视为过多的开销。毕竟，UIView被设计出来就是为了一个个创建出来并添加到View层次中加以展示的。但是，我们在前面提到的IndependentVideoManager的例子就不同了。它的回调接口被设计成第一个参数回传IndependentVideoManager实例，比如ivManager:isIndependentVideoAvailable:。可以猜测这样的回调接口定义必定是参考了UIKit，但IndependentVideoManager的情况明显不同，它一般只需要创建一个实例，然后通过在同一个实例上多次调用接口来多次播放广告。这里更需要区分的同一个实例上多次不同的调用，每次调用携带了哪些上下文参数。这里真正需要的上下文传递的能力，跟我们上面讨论的第4种做法类似，而类似UIKit那样提供的上下文传递能力是不够的。
+
+再来看一下Android上的例子。
+
 
 iOS上context是strong还是weak？
 
