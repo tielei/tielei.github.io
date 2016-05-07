@@ -12,7 +12,17 @@ published: true
 
 <!--more-->
 
-那么在回调接口的设计和实现中，我们需要考虑哪些因素呢？下面就让我们从各个方面进行讨论。
+那么在回调接口的设计和实现中，我们需要考虑哪些方面呢？现在我们先把本文要讨论的子话题列出如下，然后再逐个讨论：
+
+* 必须产生结果回调
+* 重视失败回调 & 错误码应该尽量详细
+* 调用接口和回调接口应该有清晰的对应关系
+* 成功结果回调和失败结果回调应该彼此互斥
+* 回调的线程模型
+* 回调的context参数（透传参数）
+* 回调顺序
+
+---
 
 #### 必须产生结果回调
 
@@ -319,7 +329,7 @@ isIndependentVideoAvailable:(BOOL)available;
 
 为了能把执行代码调度到其它线程，我们需要使用在上一篇[iOS和Android开发中的异步处理（一）——概述](/posts/blog-series-async-task-1.html)最后提到的一些技术，比如iOS中的GCD、NSOperationQueue、performSelectorXXX方法，Android中的ExecutorService、AsyncTask、Handler，等等（注意：ExecutorService不能用于调度到主线程，只能用于调度到异步线程）。我们有必要对线程调度的实质加以理解：能把一段代码调度到某一个线程去执行，前提条件是那个线程有一个Event Loop。这个Loop顾名思义，就是一个循环，它不停地从消息队列里取出消息，然后处理。我们做线程调度的时候，相当于向这个队列里发送消息。这个队列本身在系统实现里已经保证是线程安全的（Thread Safe Queue），因此调用者就规避了线程安全问题。在客户端开发中，系统都会为主线程创建一个Loop，但非主线程则需要开发者自己来使用适当的技术进行创建。
 
-在客户端编程的大多数情况下，我们一般会希望结果回调发生在主线程上，因为我们一般会在这个时机更新UI。而中间回调在哪个线程上执行，则取决于具体情况。在前面Downloader的例子中，中间回调downloadProgress是为了回传下载进度，下载进度一般也是为了在UI上展示，因此downloadProgress也应该调度到主线程上执行。
+在客户端编程的大多数情况下，我们一般会希望结果回调发生在主线程上，因为我们一般会在这个时机更新UI。而中间回调在哪个线程上执行，则取决于具体应用场景。在前面Downloader的例子中，中间回调downloadProgress是为了回传下载进度，下载进度一般也是为了在UI上展示，因此downloadProgress也应该调度到主线程上执行。
 
 #### 回调的context参数（透传参数）
 
@@ -393,7 +403,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
     private Downloader downloader;
 
     public MyEmojiDownloader() {
-        //实例化有一个下载器.
+        //实例化有一个下载器. MyDownloader是Downloader接口的一个实现。
         downloader = new MyDownloader();
         downloader.setListener(this);
     }
@@ -473,7 +483,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
 
     public MyEmojiDownloader() {
         downloadContextMap = new HashMap<String, EmojiDownloadContext>();
-        //实例化有一个下载器.
+        //实例化有一个下载器. MyDownloader是Downloader接口的一个实现。
         downloader = new MyDownloader();
         downloader.setListener(this);
     }
@@ -698,7 +708,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
     private Downloader downloader;
 
     public MyEmojiDownloader() {
-        //实例化有一个下载器.
+        //实例化有一个下载器. MyDownloader是Downloader接口的一个实现。
         downloader = new MyDownloader();
         downloader.setListener(this);
     }
@@ -764,11 +774,13 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
 
 显然，最后第4种实现方法更合理一些，代码更紧凑，也没有前面3种的缺点。但是，它要求我们调用的底层异步接口对上下文传递有完善的支持。在实际情况中，我们需要调用的接口大都是既定的，无法修改的。如果我们碰到的接口对上下文参数传递支持得不好，我们就别无选择，只能采取前面3种做法中的一种。总之，我们在这里讨论前3种做法并非自寻烦恼，而是为了应对那些对回调上下文支持不够的接口，而这些接口的设计者通常是无意中给我们出了这样的难题。
 
-现在，我们可以很容易得出结论：一个好的回调接口定义，应该具有传递上下文的能力。
+现在，我们可以很容易得出结论：**一个好的回调接口定义，应该具有传递上下文的能力**。
 
-我们再从上下文传递能力的角度来重新审视一下一些系统的回调接口定义。比如说iOS中UIAlertViewDelegate的alertView:clickedButtonAtIndex:，或者UITableViewDataSource的tableView:cellForRowAtIndexPath:，这些回调接口的第一个参数都会回传那个UIView本身的实例（其实UIKit中大多数回调接口都以类似的方式定义）。这起到了一定的上下文传递的作用，它可以用来区分不同的UIView实例，但不能用来区分同一个UIView实例内的不同调用。如果同一个页面内需要先后多次弹出UIAlertView框，那么我们每次都需要新创建一个UIAlertView实例，然后在回调中就能根据传回的UIAlertView实例来区分是哪一次弹框。这类似于前面讨论过的第3种做法。UIView本身还预定义了一个用于传递整型上下文的tag参数，但如果我们想传递更多的其它类型的上下文，那么我们就只能像前述第3种做法一样，继承一个UIView的自己的子类出来，在里面放置上下文参数。
+我们再从上下文传递能力的角度来重新审视一下一些系统的回调接口定义。比如说iOS中UIAlertViewDelegate的alertView:clickedButtonAtIndex:，或者UITableViewDataSource的tableView:cellForRowAtIndexPath:，这些回调接口的第一个参数都会回传那个UIView本身的实例（其实UIKit中大多数回调接口都以类似的方式定义）。这起到了一定的上下文传递的作用，它可以用来区分不同的UIView实例，但不能用来区分同一个UIView实例内的不同回调。如果同一个页面内需要先后多次弹出UIAlertView框，那么我们每次都需要新创建一个UIAlertView实例，然后在回调中就能根据传回的UIAlertView实例来区分是哪一次弹框。这类似于前面讨论过的第3种做法。UIView本身还预定义了一个用于传递整型上下文的tag参数，但如果我们想传递更多的其它类型的上下文，那么我们就只能像前述第3种做法一样，继承一个UIView的自己的子类出来，在里面放置上下文参数。
 
-UIView每次新的展示都创建一个实例，这本身并不能被视为过多的开销。毕竟，UIView被设计出来就是为了一个个创建出来并添加到View层次中加以展示的。但是，我们在前面提到的IndependentVideoManager的例子就不同了。它的回调接口被设计成第一个参数回传IndependentVideoManager实例，比如ivManager:isIndependentVideoAvailable:，可以猜测这样的回调接口定义必定是参考了UIKit。但IndependentVideoManager的情况明显不同，它一般只需要创建一个实例，然后通过在同一个实例上多次调用接口来多次播放广告。这里更需要区分的是同一个实例上多次不同的调用，每次调用携带了哪些上下文参数。这里真正需要的上下文传递能力，跟我们上面讨论的第4种做法类似，而像UIKit那样的接口定义方式提供的上下文传递能力是不够的。
+UIView每次新的展示都创建一个实例，这本身并不能被视为过多的开销。毕竟，UIView被设计出来就是为了一个个创建出来并添加到View层次中加以展示的。但是，我们在前面提到的IndependentVideoManager的例子就不同了。它的回调接口被设计成第一个参数回传IndependentVideoManager实例，比如ivManager:isIndependentVideoAvailable:，可以猜测这样的回调接口定义必定是参考了UIKit。但IndependentVideoManager的情况明显不同，它一般只需要创建一个实例，然后通过在同一个实例上多次调用接口来多次播放广告。这里更需要区分的是同一个实例上多次不同的回调，每次回调携带了哪些上下文参数。这里真正需要的上下文传递能力，跟我们上面讨论的第4种做法类似，而像UIKit那样的接口定义方式提供的上下文传递能力是不够的。
+
+在回调接口的设计中，上下文传递能力，关键的一点在于：**它能否区分单一接口实例的多次回调**。
 
 再来看一下Android上的例子。Android上的回调接口以listener的形式呈现，典型的代码如下：
 
@@ -782,19 +794,21 @@ button.setOnClickListener(new View.OnClickListener() {
 });
 {% endhighlight %}
 
-这段代码中一个Button实例，可以对应多次回调（多次点击事件）。我们不能通过这段代码在这些不同的回调之间进行区分处理，所幸的是，我们实际上也不需要。
+这段代码中一个Button实例，可以对应多次回调（多次点击事件），但我们不能通过这段代码在这些不同的回调之间进行区分处理。所幸的是，我们实际上也不需要。
 
-通过以上讨论，我们发现，与View层面有关的“前端”开发，通常不太需要复杂的上下文传递机制。而“后端”的异步任务，特别是生命周期长的异步任务，却需要更强大的上下文传递能力。所以，本系列文章的上一篇才会把“异步处理”问题列为与“后端”编程紧密相关的工作。
+通过以上讨论，我们发现，与View层面有关的偏“前端”的开发，通常不太需要区分单个接口实例的多次回调，因此不太需要复杂的上下文传递机制。而偏“后端”开发的异步任务，特别是生命周期长的异步任务，却需要更强大的上下文传递能力。所以，本系列文章的上一篇才会把“异步处理”问题列为与“后端”编程紧密相关的工作。
 
-关于上下文参数的话题，还有一些小问题也值得注意：比如在iOS上，context参数在异步任务执行期间是保持strong还是weak的引用？如果是强引用，那么如果调用者传进来的context参数是View Controller这样的大对象，那么就会造成循环引用；而如果是弱引用，那么如果调用者传进来的context参数是临时创建的对象，那么就会造成对象
-
-
+关于上下文参数的话题，还有一些小问题也值得注意：比如在iOS上，context参数在异步任务执行期间是保持strong还是weak的引用？如果是强引用，那么如果调用者传进来的context参数是View Controller这样的大对象，那么就会造成循环引用，有可能导致内存泄漏；而如果是弱引用，那么如果调用者传进来的context参数是临时创建的对象，那么就会造成临时对象刚创建就销毁，根本透传不过去。这本质上是引用计数的内存管理机制带来的两难问题。这就要看我们预期的是什么场景，我们这里讨论的context参数能够用于区分单个接口实例的多次回调，所以传进来的context参数不太可能是生命周期长的大对象，而应该是生命周期与一个异步任务基本相同的小对象，它在每次接口调用开始时创建，在单次异步任务结束（结果回调发生）的时候释放。因此，在这种预期的场景下，我们应该为context参数传进来的对象保持强引用。
 
 
+#### 回调顺序
 
+还是以前面的下载器接口为例，假如我们连续调用两次startDownload，启动了两个异步下载任务。那么，两个下载任务哪一个先执行完，是不太确定的。那就意味着可能先启动的下载任务，反而先执行了结果回调（downloadSuccess或downloadFailed）。这种回调顺序与初始调用顺序不一致的情况（可以称为回调乱序），是否会造成问题，取决于调用方的应用场景和具体实现逻辑。但是，从两个方面来考虑，我们必须注意到：
 
+* 作为接口调用方，我们必须弄清楚我们正在使用的接口是否会发生“回调乱序”。如果会，那么我们在处理接口回调的时候就要时刻注意，保证它不会带来恶性后果。
+* 作为接口实现方，我们在实现接口的时候就要明确是否为回调顺序提供强的保证：保证不会发生回调乱序。如果需要提供这种保证，那么就会增加接口实现的复杂度。
 
-
+下面我们就讨论一下从接口实现方的角度，如何为回调顺序提供强的保证。
 
 
 
