@@ -21,6 +21,7 @@ published: true
 * 回调的线程模型
 * 回调的context参数（透传参数）
 * 回调顺序
+* 闭包形式的回调和Callback Hell
 
 ---
 
@@ -800,39 +801,110 @@ button.setOnClickListener(new View.OnClickListener() {
 
 关于上下文参数的话题，还有一些小问题也值得注意：比如在iOS上，context参数在异步任务执行期间是保持strong还是weak的引用？如果是强引用，那么如果调用者传进来的context参数是View Controller这样的大对象，那么就会造成循环引用，有可能导致内存泄漏；而如果是弱引用，那么如果调用者传进来的context参数是临时创建的对象，那么就会造成临时对象刚创建就销毁，根本透传不过去。这本质上是引用计数的内存管理机制带来的两难问题。这就要看我们预期的是什么场景，我们这里讨论的context参数能够用于区分单个接口实例的多次回调，所以传进来的context参数不太可能是生命周期长的大对象，而应该是生命周期与一个异步任务基本相同的小对象，它在每次接口调用开始时创建，在单次异步任务结束（结果回调发生）的时候释放。因此，在这种预期的场景下，我们应该为context参数传进来的对象保持强引用。
 
-
 #### 回调顺序
 
-还是以前面的下载器接口为例，假如我们连续调用两次startDownload，启动了两个异步下载任务。那么，两个下载任务哪一个先执行完，是不太确定的。那就意味着可能先启动的下载任务，反而先执行了结果回调（downloadSuccess或downloadFailed）。这种回调顺序与初始调用顺序不一致的情况（可以称为回调乱序），是否会造成问题，取决于调用方的应用场景和具体实现逻辑。但是，从两个方面来考虑，我们必须注意到：
+还是以前面的下载器接口为例，假如我们连续调用两次startDownload，启动了两个异步下载任务。那么，两个下载任务哪一个先执行完，是不太确定的。那就意味着可能先启动的下载任务，反而先执行了结果回调（downloadSuccess或downloadFailed）。这种回调顺序与初始接口调用顺序不一致的情况（可以称为回调乱序），是否会造成问题，取决于调用方的应用场景和具体实现逻辑。但是，从两个方面来考虑，我们必须注意到：
 
 * 作为接口调用方，我们必须弄清楚我们正在使用的接口是否会发生“回调乱序”。如果会，那么我们在处理接口回调的时候就要时刻注意，保证它不会带来恶性后果。
 * 作为接口实现方，我们在实现接口的时候就要明确是否为回调顺序提供强的保证：保证不会发生回调乱序。如果需要提供这种保证，那么就会增加接口实现的复杂度。
 
-下面我们就讨论一下从接口实现方的角度，如何为回调顺序提供强的保证。
+从异步接口的实现方来讲，引发回调乱序的因素可能有：
+
+* 提前的失败结果回调。实际上，这种情况很容易发生，但却很难让人意识到这会导致回调乱序。一个典型的例子是，一个异步任务的实现通常要调度到另一个异步线程去执行，但在调度到异步线程之前，就检查到了某种严重的错误（比如传入参数无效导致的错误）从而结束了整个任务，并触发了失败结果回调。这样，后启动但提前失败的异步任务，可能会比先启动但正常运行的任务更早一步回调。
+* 异步任务的并发执行。异步接口背后的实现可能对应一个并发的线程池，这样并发执行的各个异步任务的完成顺序就是随机的。
+* 底层依赖的其它异步任务是回调乱序的。
+
+不管回调乱序是以上那种情况，如果我们想要保证回调顺序与初始接口调用顺序保持一致，也还是有办法的。我们可以为此创建一个队列，当每次调用接口启动异步任务的时候，我们可以把调用参数和其它一些上下文参数进队列，而回调则保证按照出队列顺序进行。
+
+也许在很多时候，接口调用方并没有那么苛刻，偶尔的回调乱序并不会带来灾难性的后果。当然前提是接口调用方对此有清醒的认识。这样我们在接口实现上保证回调不发生乱序的做法就没有那么大的必要了。当然，具体怎么选择，还是要看具体应用场景的要求和接口实现者的个人喜好。
+
+#### 闭包形式的回调和Callback Hell
+
+当异步接口的方法数量较少，且回调接口比较简单的时候（回调接口只有一个方法），我们可以用闭包的形式来定义回调接口。在iOS上，可以利用block；在Android上，可以利用内部匿名类（对应Java 8以上的lambda表达式）。
+
+假如之前的DownloadListener简化为只有一个回调方法，如下：
+
+{% highlight java linenos %}
+public interface DownloadListener {
+    /**
+     * 错误码定义
+     */
+    public static final int SUCCESS = 0;//成功
+    //... 其它错误码定义（忽略）
+
+    /**
+     * 下载结束回调.
+     * @param errorCode 错误码. SUCCESS表示下载成功, 其它错误码表示下载失败.
+     * @param url 资源地址.
+     * @param localPath 下载后的资源存储位置.
+     * @param contextData 上下文数据.
+     */
+    void downloadFinished(int errorCode, String url, String localPath, Object contextData);
+}
+{% endhighlight %}
+
+那么，Downloader接口也能够简化，不再需要一个单独的setListener接口，而是直接在下载接口中接受回调接口。如下：
+
+{% highlight java linenos %}
+public interface Downloader {
+    /**
+     * 启动资源的下载.
+     * @param url 要下载的资源地址.
+     * @param localPath 资源下载后要存储的本地位置.
+     * @param contextData 上下文数据, 在回调接口中会透传回去.可以是任何类型.
+     * @param listener 回调接口实例.
+     */
+    void startDownload(String url, String localPath, Object contextData, DownloadListener listener);
+}
+{% endhighlight %}
+
+这样定义的异步接口，好处是调用起来代码比较简洁，回调接口参数(listener)可以传入闭包的形式。但如果嵌套层数过深的话，就会造成Callback Hell ( <http://callbackhell.com>{:target="_blank"} )。试想利用上述Downloader接口来连续下载三个文件，闭包会有三层嵌套，如下：
+
+{% highlight java linenos %}
+    final Downloader downloader = new MyDownloader();
+    downloader.startDownload(url1, localPathForUrl(url1), null, new DownloadListener() {
+        @Override
+        public void downloadFinished(int errorCode, String url, String localPath, Object contextData) {
+            if (errorCode != DownloadListener.SUCCESS) {
+                //...错误处理
+            }
+            else {
+                //下载第二个URL
+                downloader.startDownload(url2, localPathForUrl(url2), null, new DownloadListener() {
+                    @Override
+                    public void downloadFinished(int errorCode, String url, String localPath, Object contextData) {
+                        if (errorCode != DownloadListener.SUCCESS) {
+                            //...错误处理
+                        }
+                        else {
+                            //下载第三个URL
+                            downloader.startDownload(url3, localPathForUrl(url3), null, new DownloadListener(
+
+                            ) {
+                                @Override
+                                public void downloadFinished(int errorCode, String url, String localPath, Object contextData) {
+                                    //...最终结果处理
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    });
+{% endhighlight %}
+
+
+RxJava
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-----
+---
 看起来可能略显啰嗦，似乎用了大部分篇幅在说明一些显而易见的东西。
 
 如果仔细审查，我们会发现，我们平常接触到的很多接口，都不是我们最理想的形式。
 
-定义接口需要深厚的功力，工作多年的人也鲜有人做到。更可怕的是，大部分甚至根本意识不到这件事是难还是容易。
+定义接口需要深厚的功力，工作多年的人也鲜有人做到。更可怕的是，很多人甚至根本意识不到这件事是难还是容易。
 
 本文并未教授如何针对具体问题进行接口设计。
