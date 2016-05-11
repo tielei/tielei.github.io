@@ -274,7 +274,6 @@ isIndependentVideoAvailable:(BOOL)available;
     catch (Exception e) {
         listener.downloadFailed(url, UNKNOWN_FAILED, getErrorMessage(UNKNOWN_FAILED));
     }
-}
 {% endhighlight %}
 
 代码改成这样，已经能保证即使出现了意想不到的情况，也能对调用者产生一个失败回调。
