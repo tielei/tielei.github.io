@@ -306,7 +306,6 @@ isIndependentVideoAvailable:(BOOL)available;
             e.printStackTrace();
         }
     }
-}
 {% endhighlight %}
 
 回调代码复杂了一些，但也更安全了。
