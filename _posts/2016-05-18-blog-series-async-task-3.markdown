@@ -36,12 +36,12 @@ published: true
 2. 再查找Disk Cache，如果命中，则直接返回；否则，执行下一步
 3. 发起网络请求，下载和解码图片文件。
 
-通常，第1步查找Memory Cache是一个同步任务。而第2步和第3步都是异步任务，对于同一个图片加载任务来说，这两步之间便是“先后接续执行”的关系：“查找Disk Cache”的异步任务完成后（发生结果回调），根据缓存命中结果再决定要不要启动“发起网络请求”
+通常，第1步查找Memory Cache是一个同步任务。而第2步和第3步都是异步任务，对于同一个图片加载任务来说，这两步之间便是“先后接续执行”的关系：“查找Disk Cache”的异步任务完成后（发生结果回调），根据缓存命中的结果再决定要不要启动“发起网络请求”
 的异步任务。
 
 下面我们就用代码展示一下“查找Disk Cache”和“发起网络请求”这两个异步任务的启动和执行情况。
 
-首先，我们需要先定义好“Disk Cache”和“网络请求”两个异步任务的接口。
+首先，我们需要先定义好“Disk Cache”和“网络请求”这两个异步任务的接口。
 
 {% highlight java linenos %}
 public interface ImageDiskCache {
@@ -61,7 +61,7 @@ public interface ImageDiskCache {
 }
 {% endhighlight %}
 
-ImageDiskCache用于存取图片的Disk Cache，其中参数中的AsyncCallback，是一个通用的异步回调接口的定义。其定义代码如下（本文后面还会用到）：
+ImageDiskCache接口用于存取图片的Disk Cache，其中参数中的AsyncCallback，是一个通用的异步回调接口的定义。其定义代码如下（本文后面还会用到）：
 
 {% highlight java linenos %}
 /**
@@ -75,7 +75,7 @@ public interface AsyncCallback <D> {
 
 而发起网络请求下载图片文件，我们直接调用上一篇文章《[iOS和Android开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中介绍的Downloader接口（注：采用最后带有contextData参数的那一版本的Dowanloder接口）。
 
-这样，查询“查找Disk Cache”和“发起网络下载请求”的代码示例如下：
+这样，“查找Disk Cache”和“发起网络下载请求”的代码示例如下：
 
 {% highlight java linenos %}
     //检查二级缓存: disk cache
@@ -104,16 +104,22 @@ Downloader的成功结果回调的实现代码示例如下：
         imageDecodingExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                Bitmap bitmap = decodeBitmap(new File(localPath));
-                if (bitmap != null) {
-                    imageMemCache.putImage(url, bitmap);
-                    imageDiskCache.putImage(url, bitmap, null);
-                    successCallback(url, bitmap, contextData);
-                }
-                else {
-                    //解码失败
-                    failureCallback(url, ImageLoaderListener.BITMAP_DECODE_FAILED, contextData);
-                }
+                final Bitmap bitmap = decodeBitmap(new File(localPath));
+                //重新调度回主线程
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (bitmap != null) {
+                            imageMemCache.putImage(url, bitmap);
+                            imageDiskCache.putImage(url, bitmap, null);
+                            successCallback(url, bitmap, contextData);
+                        }
+                        else {
+                            //解码失败
+                            failureCallback(url, ImageLoaderListener.BITMAP_DECODE_FAILED, contextData);
+                        }
+                    }
+                });
             }
         });
     }
@@ -333,7 +339,7 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
 }
 {% endhighlight %}
 
-为了判断两个异步请求是否“全部完成”，我们需要在任一个请求回调时都去判断所有请求是否已经返回。这里需要注意的是，之所以我们能采取这样的判断方法，有一个很重要的前提：HttpService的onResult已经调度到主线程执行。我们在上一篇文章《[iOS和Android开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调的线程模型”一节，对回调发生的线程环境已经进行过讨论。在onResult已经调度到主线程执行的前提下，两个请求的onResult回调顺序只能有两种情况：先执行第一个请求的onResult再执行第二个请求的onResult；或者先执行第二个请求的onResult再执行第一个请求的onResult。不管是哪种顺序，上面代码中onResult内部的判断都是有效的。
+为了判断两个异步请求是否“全部完成”了，我们需要在任一个请求回调时都去判断所有请求是否已经返回。这里需要注意的是，之所以我们能采取这样的判断方法，有一个很重要的前提：HttpService的onResult已经调度到主线程执行。我们在上一篇文章《[iOS和Android开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调的线程模型”一节，对回调发生的线程环境已经进行过讨论。在onResult已经调度到主线程执行的前提下，两个请求的onResult回调顺序只能有两种情况：先执行第一个请求的onResult再执行第二个请求的onResult；或者先执行第二个请求的onResult再执行第一个请求的onResult。不管是哪种顺序，上面代码中onResult内部的判断都是有效的。
 
 然而，如果HttpService的onResult在不同的线程上执行，那么两个请求的onResult回调就可能交叉执行，那么里面的各种判断也会有同步问题。
 
@@ -341,11 +347,11 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
 
 #### 多个异步任务并发执行，优先完成
 
-“并发执行，优先完成”，指的是同时启动多个异步任务，它们同时并发地执行，但不同的任务却有不同的优先级，任务执行结束时，优先采用优先级高的任务返回的结果。如果优先级高的任务先执行结束了，那么后执行完的低优先级任务就被忽略；如果优先级低的任务先执行结束了，那么后执行完的高优先级任务的返回结果就覆盖之前优先级低任务返回的结果。
+“并发执行，优先完成”，指的是同时启动多个异步任务，它们同时并发地执行，但不同的任务却有不同的优先级，任务执行结束时，优先采用高优先级的任务返回的结果。如果高优先级的任务先执行结束了，那么后执行完的低优先级任务就被忽略；如果低优先级的任务先执行结束了，那么后执行完的高优先级任务的返回结果就覆盖之前低优先级任务的返回结果。
 
-一个典型的例子是页面缓存。比如，一个页面要显示一份动态的列表数据。如果每次页面打开时都从服务器取列表数据，那么碰到没有网络或者网络比较慢的情况，页面会长时间空白。这时通常显示一份旧的数据，比什么都不显示要好。因此，我们可能会考虑给这份列表数据增加一个本地持久化的缓存。
+一个典型的例子是页面缓存。比如，一个页面要显示一份动态的列表数据。如果每次页面打开时都是只从服务器取列表数据，那么碰到没有网络或者网络比较慢的情况，页面会长时间空白。这时通常显示一份旧的数据，比什么都不显示要好。因此，我们可能会考虑给这份列表数据增加一个本地持久化的缓存。
 
-本地缓存也是一个异步任务，代码定义如下：
+本地缓存也是一个异步任务，接口代码定义如下：
 
 {% highlight java linenos %}
 public interface LocalDataCache {
@@ -429,7 +435,7 @@ public class PageCachingDemoActivity extends AppCompatActivity {
 
 虽然读取本地缓存数据通常来说比从网络获取数据要快得多，但既然都是异步接口，就存在一种逻辑上的可能性：网络获取数据先于本地缓存数据发生回调。而且，我们在上一篇文章《[iOS和Android开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调顺序”一节提到的“提前的失败结果回调”和“提前的成功结果回调”，为这种情况的发生提供了更为现实的依据。
 
-在上面的代码中，如果网络获取数据先于本地缓存数据回调了，那么我们会记录一个标记dataFromHttpReady。等到获取本地缓存数据的任务完成时，我们判断这个标记，从而忽略缓存数据。
+在上面的代码中，如果网络获取数据先于本地缓存数据回调了，那么我们会记录一个布尔型的标记dataFromHttpReady。等到获取本地缓存数据的任务完成时，我们判断这个标记，从而忽略缓存数据。
 
 单独对于页面缓存这个例子，由于通常来说读取本地缓存数据和从网络获取数据所需要的执行时间相差悬殊，所以这里的“并发执行，优先完成”的做法对性能提升并不明显。这意味着，如果我们把页面缓存的这个例子改为“先后接续执行”的实现方式，可能会在没有损失太多性能的前提下，获得代码逻辑的简单易懂。
 
@@ -596,7 +602,9 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
 
 通过引入RxJava，我们简化了异步任务执行结束时的判断逻辑，但把大部分精力花在了“将HttpService封装成Observable”上面了。我们说过，RxJava是一件“重型武器”，它所能完成的事情远远大于这里所需要的。把RxJava用在这里，不免给人“杀鸡用牛刀”的感觉。
 
-对于另外两种异步任务的协作关系：“先后接续执行”和“并发执行，优先完成”，如果想应用RxJava来解决，那么同样首先需要先成为RxJava的专家。特别是对于“先后接续执行”的情况，它本身已经足够简单了。有时候，我们也许更希望处理逻辑简单，那么把多个异步任务的执行，都按照“先后接续执行”的方式来处理，也是一种解决思路。虽然这会损害一些性能。
+对于另外两种异步任务的协作关系：“先后接续执行”和“并发执行，优先完成”，如果想应用RxJava来解决，那么同样首先需要先成为RxJava的专家，这样才有可能很好地完成这件事。
+
+而对于“先后接续执行”的情况，它本身已经足够简单了，不引入别的框架反而更简单。有时候，我们也许更希望处理逻辑简单，那么把多个异步任务的执行，都按照“先后接续执行”的方式来处理，也是一种解决思路。虽然这会损害一些性能。
 
 ----
 
