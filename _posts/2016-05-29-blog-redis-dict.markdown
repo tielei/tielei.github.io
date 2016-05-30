@@ -97,3 +97,12 @@ typedef struct dict {
 
 [<img src="/assets/photos_redis/redis_dict_structure.png" style="width:600px" alt="RxJava流程图" />](/assets/photos_redis/redis_dict_structure.png)
 
+结合上面的代码和结构图，可以很清楚地看出dict的结构。一个dict由如下若干项组成：
+
+* 一个指向dictType结构的指针（type）。它通过自定义的方式使得dict的key和value能够存储任何类型的数据。
+* 一个私有数据指针（privdata）。由调用者在创建dict的时候传进来。
+* 两个哈希表（ht[2]）。只有在重哈希的过程中，ht[0]和ht[1]才都有效。而在平常情况下，只有ht[0]有效，ht[1]里面没有任何数据。上图表示的就是正在重哈希过程中的情况。
+* 当前重哈希索引（rehashidx）。
+
+
+dictType结构包含若干函数指针，用于dict的调用者对涉及key和value的各种操作进行自定义。这些操作包含
