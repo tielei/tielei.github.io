@@ -38,12 +38,60 @@ published: true
 * 快速响应时间（fast response time）。与快速响应时间相对的，是高吞吐量（high throughput）。Redis是用于提供在线访问的，对于单个请求的响应时间要求很高，因此快速响应时间是比高吞吐量更重要的目标。有时候，这两个目标是矛盾的。
 * 单线程（single-threaded）。Redis的性能瓶颈不在于CPU资源，而在于内存访问和网络IO。而采用单线程的设计带来的好处是，极大简化了数据结构和算法的实现。相反，Redis通过异步IO和pipelining等机制来实现高速的并发访问。显然，单线程的设计，对于单个请求的快速响应时间也提出了更高的要求。
 
-
 本文是《Redis内部数据结构详解》系列的第一篇，讲述Redis一个重要的基础数据结构：dict。
 
 dict是一个用于维护key和value映射关系的数据结构，与很多语言中的Map或dictionary类似。Redis的一个database中所有key到value的映射，就是使用一个dict来维护的。不过，这只是它在Redis中的一个用途而已，它在Redis中被使用的地方还有很多。比如，一个Redis hash结构，当它的field较多时，便会采用dict来存储。再比如，Redis配合使用dict和skiplist来共同维护一个sorted set。这些细节我们后面再讨论，在本文中，我们集中精力讨论dict本身的实现。
 
-dict本质上是为了解决算法中的查找问题，一般查找问题的解法分为两个大类：一个是基于各种平衡树，一个是基于哈希表。我们平常使用的各种Map或dictionary，大都是基于哈希表实现的。在不要求数据有序存储，且能保持较低冲突概率的前提下，基于哈希表的查找性能能做到非常高效，接近O(1)，而且实现简单。
+dict本质上是为了解决算法中的查找问题（Searching），一般查找问题的解法分为两个大类：一个是基于各种平衡树，一个是基于哈希表。我们平常使用的各种Map或dictionary，大都是基于哈希表实现的。在不要求数据有序存储，且能保持较低冲突概率的前提下，基于哈希表的查找性能能做到非常高效，接近O(1)，而且实现简单。
 
-在Redis中，dict也是一个基于哈希表的算法。和传统的哈希算法类似，它采用哈希函数从key计算得到在哈希表中的位置，采用拉链法解决冲突，并在装载因子（load factor）超过预定值时自动扩展内存，引发重哈希（rehashing）。
+在Redis中，dict也是一个基于哈希表的算法。和传统的哈希算法类似，它采用某个哈希函数从key计算得到在哈希表中的位置，采用拉链法解决冲突，并在装载因子（load factor）超过预定值时自动扩展内存，引发重哈希（rehashing）。Redis的dict实现最显著的一个特点，就在于它的重哈希。它采用了一种称为增量式重哈希（incremental rehashing）的方法，在需要扩展内存时避免一次性对所有key进行重哈希，而是将重哈希操作分散到对于dict的各个增删改查的操作中去。这种方法能做到每次只对一小部分key进行重哈希，而每次重哈希之间不影响dict的操作。dict之所以这样设计，是为了避免重哈希期间单个请求的响应时间剧烈增加，这与前面提到的“快速响应时间”的设计原则是相符的。
+
+下面进行详细介绍。
+
+#### dict的数据结构定义
+
+为了实现增量式重哈希（incremental rehashing），dict的数据结构里包含两个哈希表。在重哈希期间，数据从第一个哈希表向第二个哈希表迁移。
+
+dict的C代码定义如下（出自Redis源码dict.h）：
+
+{% highlight c linenos %}
+typedef struct dictEntry {
+    void *key;
+    union {
+        void *val;
+        uint64_t u64;
+        int64_t s64;
+        double d;
+    } v;
+    struct dictEntry *next;
+} dictEntry;
+
+typedef struct dictType {
+    unsigned int (*hashFunction)(const void *key);
+    void *(*keyDup)(void *privdata, const void *key);
+    void *(*valDup)(void *privdata, const void *obj);
+    int (*keyCompare)(void *privdata, const void *key1, const void *key2);
+    void (*keyDestructor)(void *privdata, void *key);
+    void (*valDestructor)(void *privdata, void *obj);
+} dictType;
+
+/* This is our hash table structure. Every dictionary has two of this as we
+ * implement incremental rehashing, for the old to the new table. */
+typedef struct dictht {
+    dictEntry **table;
+    unsigned long size;
+    unsigned long sizemask;
+    unsigned long used;
+} dictht;
+
+typedef struct dict {
+    dictType *type;
+    void *privdata;
+    dictht ht[2];
+    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+    int iterators; /* number of iterators currently running */
+} dict;
+{% endhighlight %}
+
+为了能更清楚地展示dict的数据结构定义，我们用一张结构图来表示它。如下。
 
