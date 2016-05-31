@@ -101,8 +101,266 @@ typedef struct dict {
 
 * 一个指向dictType结构的指针（type）。它通过自定义的方式使得dict的key和value能够存储任何类型的数据。
 * 一个私有数据指针（privdata）。由调用者在创建dict的时候传进来。
-* 两个哈希表（ht[2]）。只有在重哈希的过程中，ht[0]和ht[1]才都有效。而在平常情况下，只有ht[0]有效，ht[1]里面没有任何数据。上图表示的就是正在重哈希过程中的情况。
-* 当前重哈希索引（rehashidx）。
+* 两个哈希表（ht[2]）。只有在重哈希的过程中，ht[0]和ht[1]才都有效。而在平常情况下，只有ht[0]有效，ht[1]里面没有任何数据。上图表示的就是重哈希进行到中间某一步时的情况。
+* 当前重哈希索引（rehashidx）。如果rehashidx = -1，表示当前没有在重哈希过程中；否则，表示当前正在进行重哈希，且它的值记录了当前重哈希进行到哪一步了。
+* 当前正在进行遍历的iterator的个数。这不是我们现在讨论的重点，暂时忽略。
 
 
-dictType结构包含若干函数指针，用于dict的调用者对涉及key和value的各种操作进行自定义。这些操作包含
+dictType结构包含若干函数指针，用于dict的调用者对涉及key和value的各种操作进行自定义。这些操作包含：
+
+* hashFunction，对key进行哈希值计算的哈希算法。
+* keyDup和valDup，分别定义key和value的拷贝函数，用于在需要的时候对key和value进行深拷贝，而不仅仅是传递对象指针。
+* keyCompare，定义两个key的比较操作，在根据key进行查找时会用到。
+* keyDestructor和valDestructor，分别定义对key和value的析构函数。
+
+私有数据指针（privdata）就是会在dictType的某些操作被调用的时候传回给调用者。
+
+需要详细察看的是dictht结构。它定义一个哈希表的结构，由如下若干项组成：
+
+* 一个dictEntry指针数组（table）。key的哈希值最终映射到这个数组的某个位置上。如果多个key映射到同一个位置，就发生了冲突，那么就拉出一个dictEntry链表。
+* size：标识dictEntry指针数组的长度。它总是2的指数。
+* sizemask：用于将哈希值映射到table的位置索引。它的值等于(size-1)，比如7, 15, 31, 63，等等，也就是用二进制表示的各个bit全1的数字。每个key先经过hashFunction计算得到一个哈希值，然后计算(哈希值 & sizemask)得到在table上的位置。相当于计算取余(哈希值 % size)。
+* used：记录dict中现有的数据个数。它与size的比值就是装载因子（load factor）。这个比值越大，哈希值冲突概率越高。
+
+dictEntry结构中包含k, v和指向链表下一项的next指针。k是void指针，这意味着它可以指向任何类型。v是个union，当它的值是uint64_t、int64_t或double类型时，就不再需要额外的存储，这有利于减少内存碎片。当然，v也可以是void指针，以便能存储任何类型的数据。
+
+#### dict的创建（dictCreate）
+
+{% highlight c linenos %}
+dict *dictCreate(dictType *type,
+        void *privDataPtr)
+{
+    dict *d = zmalloc(sizeof(*d));
+
+    _dictInit(d,type,privDataPtr);
+    return d;
+}
+
+int _dictInit(dict *d, dictType *type,
+        void *privDataPtr)
+{
+    _dictReset(&d->ht[0]);
+    _dictReset(&d->ht[1]);
+    d->type = type;
+    d->privdata = privDataPtr;
+    d->rehashidx = -1;
+    d->iterators = 0;
+    return DICT_OK;
+}
+
+static void _dictReset(dictht *ht)
+{
+    ht->table = NULL;
+    ht->size = 0;
+    ht->sizemask = 0;
+    ht->used = 0;
+}
+{% endhighlight %}
+
+dictCreate为dict的数据结构分配空间并为各个变量赋初值。其中两个哈希表ht[0]和ht[1]起始都没有分配空间，table指针都赋为NULL。这意味着要等第一个数据插入时才会真正分配空间。
+
+#### dict的查找（dictFind）
+
+{% highlight c linenos %}
+#define dictIsRehashing(d) ((d)->rehashidx != -1)
+
+dictEntry *dictFind(dict *d, const void *key)
+{
+    dictEntry *he;
+    unsigned int h, idx, table;
+
+    if (d->ht[0].used + d->ht[1].used == 0) return NULL; /* dict is empty */
+    if (dictIsRehashing(d)) _dictRehashStep(d);
+    h = dictHashKey(d, key);
+    for (table = 0; table <= 1; table++) {
+        idx = h & d->ht[table].sizemask;
+        he = d->ht[table].table[idx];
+        while(he) {
+            if (key==he->key || dictCompareKeys(d, key, he->key))
+                return he;
+            he = he->next;
+        }
+        if (!dictIsRehashing(d)) return NULL;
+    }
+    return NULL;
+}
+{% endhighlight %}
+
+上述dictFind的源码，根据dict当前是否正在重哈希，依次做了这么几件事：
+
+* 如果当前正在进行重哈希，那么将重哈希过程向前推进一步（即调用_dictRehashStep）。实际上，除了查找，插入和删除也都会触发这一动作。这就将重哈希过程分散到各个查找、插入和删除操作中去了，而不是集中在某一个操作中一次性做完。
+* 计算key的哈希值（调用dictHashKey，里面的实现会调用前面提到的hashFunction）。
+* 先在第一个哈希表ht[0]上进行查找。在table数组上定位到哈希值对应的位置（如前所述，通过哈希值与sizemask进行按位与），然后在对应的dictEntry链表上进行查找。查找的时候需要对key进行比较，这时候调用dictCompareKeys，它里面的实现会调用到前面提到的keyCompare。如果找到就返回该项。否则，进行下一步。
+* 判断当前是否在重哈希，如果没有，那么在ht[0]上的查找结果就是最终结果（没找到，返回NULL）。否则，在ht[1]上进行查找（过程与上一步相同）。
+
+下面我们有必要看一下增量重哈希的_dictRehashStep的实现。
+
+{% highlight c linenos %}
+static void _dictRehashStep(dict *d) {
+    if (d->iterators == 0) dictRehash(d,1);
+}
+
+int dictRehash(dict *d, int n) {
+    int empty_visits = n*10; /* Max number of empty buckets to visit. */
+    if (!dictIsRehashing(d)) return 0;
+
+    while(n-- && d->ht[0].used != 0) {
+        dictEntry *de, *nextde;
+
+        /* Note that rehashidx can't overflow as we are sure there are more
+         * elements because ht[0].used != 0 */
+        assert(d->ht[0].size > (unsigned long)d->rehashidx);
+        while(d->ht[0].table[d->rehashidx] == NULL) {
+            d->rehashidx++;
+            if (--empty_visits == 0) return 1;
+        }
+        de = d->ht[0].table[d->rehashidx];
+        /* Move all the keys in this bucket from the old to the new hash HT */
+        while(de) {
+            unsigned int h;
+
+            nextde = de->next;
+            /* Get the index in the new hash table */
+            h = dictHashKey(d, de->key) & d->ht[1].sizemask;
+            de->next = d->ht[1].table[h];
+            d->ht[1].table[h] = de;
+            d->ht[0].used--;
+            d->ht[1].used++;
+            de = nextde;
+        }
+        d->ht[0].table[d->rehashidx] = NULL;
+        d->rehashidx++;
+    }
+
+    /* Check if we already rehashed the whole table... */
+    if (d->ht[0].used == 0) {
+        zfree(d->ht[0].table);
+        d->ht[0] = d->ht[1];
+        _dictReset(&d->ht[1]);
+        d->rehashidx = -1;
+        return 0;
+    }
+
+    /* More to rehash... */
+    return 1;
+}
+{% endhighlight %}
+
+dictRehash每次将重哈希至少向前推进n步（除非不到n步整个重哈希就结束了），每一步都将ht[0]上某一个bucket（即一个dictEntry链表）上的每一个dictEntry移动到ht[1]上，它在ht[1]上的新位置根据ht[1]的sizemask进行重新计算。rehashidx记录了当前尚未迁移（有待迁移）的ht[0]的bucket位置。
+
+如果dictRehash被调用的时候，rehashidx指向的bucket里一个dictEntry也没有，那么它就没有可迁移的数据。这时它尝试在ht[0].table数组中不断向后遍历，直到找到下一个存有数据的bucket位置。如果一直找不到，则最多走n*10步，本次重哈希暂告结束。
+
+最后，如果ht[0]上的数据都迁移到ht[1]上了（即d->ht[0].used == 0），那么整个重哈希结束，ht[0]变成ht[1]的内容，而ht[1]重置为空。
+
+#### dict的插入（dictAdd和dictReplace）
+
+dictAdd插入新的一对key和value，如果key已经存在，则插入失败。
+
+dictReplace也是插入一对key和value，不过在key存在的时候，它会更新value。
+
+{% highlight c linenos %}
+int dictAdd(dict *d, void *key, void *val)
+{
+    dictEntry *entry = dictAddRaw(d,key);
+
+    if (!entry) return DICT_ERR;
+    dictSetVal(d, entry, val);
+    return DICT_OK;
+}
+
+dictEntry *dictAddRaw(dict *d, void *key)
+{
+    int index;
+    dictEntry *entry;
+    dictht *ht;
+
+    if (dictIsRehashing(d)) _dictRehashStep(d);
+
+    /* Get the index of the new element, or -1 if
+     * the element already exists. */
+    if ((index = _dictKeyIndex(d, key)) == -1)
+        return NULL;
+
+    /* Allocate the memory and store the new entry.
+     * Insert the element in top, with the assumption that in a database
+     * system it is more likely that recently added entries are accessed
+     * more frequently. */
+    ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0];
+    entry = zmalloc(sizeof(*entry));
+    entry->next = ht->table[index];
+    ht->table[index] = entry;
+    ht->used++;
+
+    /* Set the hash entry fields. */
+    dictSetKey(d, entry, key);
+    return entry;
+}
+
+static int _dictKeyIndex(dict *d, const void *key)
+{
+    unsigned int h, idx, table;
+    dictEntry *he;
+
+    /* Expand the hash table if needed */
+    if (_dictExpandIfNeeded(d) == DICT_ERR)
+        return -1;
+    /* Compute the key hash value */
+    h = dictHashKey(d, key);
+    for (table = 0; table <= 1; table++) {
+        idx = h & d->ht[table].sizemask;
+        /* Search if this slot does not already contain the given key */
+        he = d->ht[table].table[idx];
+        while(he) {
+            if (key==he->key || dictCompareKeys(d, key, he->key))
+                return -1;
+            he = he->next;
+        }
+        if (!dictIsRehashing(d)) break;
+    }
+    return idx;
+}
+{% endhighlight %}
+
+以上是dictAdd的关键实现代码。我们主要需要注意以下几点：
+* 它也会触发推进一步重哈希（_dictRehashStep）。
+* 如果正在重哈希中，它会把数据插入到ht[1]；否则插入到ht[0]。
+* 在对应的bucket中插入数据的时候，总是插入到dictEntry的头部。因为新数据接下来被访问的概率可能比较高，这样再次查找它时就会比较次数较少。
+* _dictKeyIndex在dict中寻找插入位置。如果不在重哈希过程中，它只查找ht[0]；否则查找ht[0]和ht[1]。
+* _dictKeyIndex可能触发dict内存扩展（_dictExpandIfNeeded，它将哈希表长度扩展为原来两倍，具体请参考dict.c中源码）。
+
+dictReplace在dictAdd基础上实现，如下：
+
+{% highlight c linenos %}
+int dictReplace(dict *d, void *key, void *val)
+{
+    dictEntry *entry, auxentry;
+
+    /* Try to add the element. If the key
+     * does not exists dictAdd will suceed. */
+    if (dictAdd(d, key, val) == DICT_OK)
+        return 1;
+    /* It already exists, get the entry */
+    entry = dictFind(d, key);
+    /* Set the new value and free the old one. Note that it is important
+     * to do that in this order, as the value may just be exactly the same
+     * as the previous one. In this context, think to reference counting,
+     * you want to increment (set), and then decrement (free), and not the
+     * reverse. */
+    auxentry = *entry;
+    dictSetVal(d, entry, val);
+    dictFreeVal(d, &auxentry);
+    return 0;
+}
+{% endhighlight %}
+
+在key已经存在的情况下，dictReplace会同时调用dictAdd和dictFind，这其实相当于两次查找过程。这里Redis的代码不够优化。
+
+#### dict的删除（dictDelete）
+
+dictDelete的源码这里忽略，具体请参考dict.c。需要稍加注意的是：
+
+* dictDelete也会触发推进一步重哈希（_dictRehashStep）
+* 删除成功后会调用key和value的析构函数（keyDestructor和valDestructor）。
+
+
+dict的实现相对来说比较简单，我们就介绍到这。下一次我们会介绍Redis当中字符串的实现——sds，敬请期待。
