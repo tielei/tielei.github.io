@@ -35,14 +35,14 @@ published: true
 在讨论任何一个系统的内部实现的时候，我们都要先明确它的设计原则，这样我们才能更深刻地理解它为什么会进行如此设计的真正意图。在本文接下来的讨论中，我们主要关注以下几点：
 
 * 存储效率（memory efficiency）。Redis是专用于存储数据的，它对于计算机资源的主要消耗就在于内存，因此节省内存是它非常非常重要的一个方面。这意味着Redis一定是非常精细地考虑了压缩数据、减少内存碎片等问题。
-* 快速响应时间（fast response time）。与快速响应时间相对的，是高吞吐量（high throughput）。Redis是用于提供在线访问的，对于单个请求的响应时间要求很高，因此快速响应时间是比高吞吐量更重要的目标。有时候，这两个目标是矛盾的。
+* 快速响应时间（fast response time）。与快速响应时间相对的，是高吞吐量（high throughput）。Redis是用于提供在线访问的，对于单个请求的响应时间要求很高，因此，快速响应时间是比高吞吐量更重要的目标。有时候，这两个目标是矛盾的。
 * 单线程（single-threaded）。Redis的性能瓶颈不在于CPU资源，而在于内存访问和网络IO。而采用单线程的设计带来的好处是，极大简化了数据结构和算法的实现。相反，Redis通过异步IO和pipelining等机制来实现高速的并发访问。显然，单线程的设计，对于单个请求的快速响应时间也提出了更高的要求。
 
 本文是《Redis内部数据结构详解》系列的第一篇，讲述Redis一个重要的基础数据结构：dict。
 
 dict是一个用于维护key和value映射关系的数据结构，与很多语言中的Map或dictionary类似。Redis的一个database中所有key到value的映射，就是使用一个dict来维护的。不过，这只是它在Redis中的一个用途而已，它在Redis中被使用的地方还有很多。比如，一个Redis hash结构，当它的field较多时，便会采用dict来存储。再比如，Redis配合使用dict和skiplist来共同维护一个sorted set。这些细节我们后面再讨论，在本文中，我们集中精力讨论dict本身的实现。
 
-dict本质上是为了解决算法中的查找问题（Searching），一般查找问题的解法分为两个大类：一个是基于各种平衡树，一个是基于哈希表。我们平常使用的各种Map或dictionary，大都是基于哈希表实现的。在不要求数据有序存储，且能保持较低冲突概率的前提下，基于哈希表的查找性能能做到非常高效，接近O(1)，而且实现简单。
+dict本质上是为了解决算法中的查找问题（Searching），一般查找问题的解法分为两个大类：一个是基于各种平衡树，一个是基于哈希表。我们平常使用的各种Map或dictionary，大都是基于哈希表实现的。在不要求数据有序存储，且能保持较低的哈希值冲突概率的前提下，基于哈希表的查找性能能做到非常高效，接近O(1)，而且实现简单。
 
 在Redis中，dict也是一个基于哈希表的算法。和传统的哈希算法类似，它采用某个哈希函数从key计算得到在哈希表中的位置，采用拉链法解决冲突，并在装载因子（load factor）超过预定值时自动扩展内存，引发重哈希（rehashing）。Redis的dict实现最显著的一个特点，就在于它的重哈希。它采用了一种称为增量式重哈希（incremental rehashing）的方法，在需要扩展内存时避免一次性对所有key进行重哈希，而是将重哈希操作分散到对于dict的各个增删改查的操作中去。这种方法能做到每次只对一小部分key进行重哈希，而每次重哈希之间不影响dict的操作。dict之所以这样设计，是为了避免重哈希期间单个请求的响应时间剧烈增加，这与前面提到的“快速响应时间”的设计原则是相符的。
 
@@ -113,11 +113,11 @@ dictType结构包含若干函数指针，用于dict的调用者对涉及key和va
 * keyCompare，定义两个key的比较操作，在根据key进行查找时会用到。
 * keyDestructor和valDestructor，分别定义对key和value的析构函数。
 
-私有数据指针（privdata）就是会在dictType的某些操作被调用的时候传回给调用者。
+私有数据指针（privdata）就是在dictType的某些操作被调用时会传回给调用者。
 
 需要详细察看的是dictht结构。它定义一个哈希表的结构，由如下若干项组成：
 
-* 一个dictEntry指针数组（table）。key的哈希值最终映射到这个数组的某个位置上。如果多个key映射到同一个位置，就发生了冲突，那么就拉出一个dictEntry链表。
+* 一个dictEntry指针数组（table）。key的哈希值最终映射到这个数组的某个位置上（对应一个bucket）。如果多个key映射到同一个位置，就发生了冲突，那么就拉出一个dictEntry链表。
 * size：标识dictEntry指针数组的长度。它总是2的指数。
 * sizemask：用于将哈希值映射到table的位置索引。它的值等于(size-1)，比如7, 15, 31, 63，等等，也就是用二进制表示的各个bit全1的数字。每个key先经过hashFunction计算得到一个哈希值，然后计算(哈希值 & sizemask)得到在table上的位置。相当于计算取余(哈希值 % size)。
 * used：记录dict中现有的数据个数。它与size的比值就是装载因子（load factor）。这个比值越大，哈希值冲突概率越高。
@@ -193,7 +193,7 @@ dictEntry *dictFind(dict *d, const void *key)
 * 先在第一个哈希表ht[0]上进行查找。在table数组上定位到哈希值对应的位置（如前所述，通过哈希值与sizemask进行按位与），然后在对应的dictEntry链表上进行查找。查找的时候需要对key进行比较，这时候调用dictCompareKeys，它里面的实现会调用到前面提到的keyCompare。如果找到就返回该项。否则，进行下一步。
 * 判断当前是否在重哈希，如果没有，那么在ht[0]上的查找结果就是最终结果（没找到，返回NULL）。否则，在ht[1]上进行查找（过程与上一步相同）。
 
-下面我们有必要看一下增量重哈希的_dictRehashStep的实现。
+下面我们有必要看一下增量式重哈希的_dictRehashStep的实现。
 
 {% highlight c linenos %}
 static void _dictRehashStep(dict *d) {
@@ -251,6 +251,8 @@ dictRehash每次将重哈希至少向前推进n步（除非不到n步整个重�
 如果dictRehash被调用的时候，rehashidx指向的bucket里一个dictEntry也没有，那么它就没有可迁移的数据。这时它尝试在ht[0].table数组中不断向后遍历，直到找到下一个存有数据的bucket位置。如果一直找不到，则最多走n*10步，本次重哈希暂告结束。
 
 最后，如果ht[0]上的数据都迁移到ht[1]上了（即d->ht[0].used == 0），那么整个重哈希结束，ht[0]变成ht[1]的内容，而ht[1]重置为空。
+
+根据以上对于重哈希过程的分析，我们容易看出，本文前面的dict结构图中所展示的正是rehashidx=2时的情况，前面两个bucket（ht[0].table[0]和ht[0].table[1]）都已经迁移到ht[1]上去了。
 
 #### dict的插入（dictAdd和dictReplace）
 
@@ -324,7 +326,7 @@ static int _dictKeyIndex(dict *d, const void *key)
 以上是dictAdd的关键实现代码。我们主要需要注意以下几点：
 * 它也会触发推进一步重哈希（_dictRehashStep）。
 * 如果正在重哈希中，它会把数据插入到ht[1]；否则插入到ht[0]。
-* 在对应的bucket中插入数据的时候，总是插入到dictEntry的头部。因为新数据接下来被访问的概率可能比较高，这样再次查找它时就会比较次数较少。
+* 在对应的bucket中插入数据的时候，总是插入到dictEntry的头部。因为新数据接下来被访问的概率可能比较高，这样再次查找它时就比较次数较少。
 * _dictKeyIndex在dict中寻找插入位置。如果不在重哈希过程中，它只查找ht[0]；否则查找ht[0]和ht[1]。
 * _dictKeyIndex可能触发dict内存扩展（_dictExpandIfNeeded，它将哈希表长度扩展为原来两倍，具体请参考dict.c中源码）。
 
@@ -360,7 +362,9 @@ int dictReplace(dict *d, void *key, void *val)
 dictDelete的源码这里忽略，具体请参考dict.c。需要稍加注意的是：
 
 * dictDelete也会触发推进一步重哈希（_dictRehashStep）
+* 如果当前不在重哈希过程中，它只在ht[0]中查找要删除的key；否则ht[0]和ht[1]它都要查找。
 * 删除成功后会调用key和value的析构函数（keyDestructor和valDestructor）。
 
+---
 
-dict的实现相对来说比较简单，我们就介绍到这。下一次我们会介绍Redis当中字符串的实现——sds，敬请期待。
+dict的实现相对来说比较简单，本文就介绍到这。在下一篇中我们将会介绍Redis中动态字符串的实现——sds，敬请期待。
