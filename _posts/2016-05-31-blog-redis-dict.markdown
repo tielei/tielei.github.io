@@ -324,6 +324,7 @@ static int _dictKeyIndex(dict *d, const void *key)
 {% endhighlight %}
 
 以上是dictAdd的关键实现代码。我们主要需要注意以下几点：
+
 * 它也会触发推进一步重哈希（_dictRehashStep）。
 * 如果正在重哈希中，它会把数据插入到ht[1]；否则插入到ht[0]。
 * 在对应的bucket中插入数据的时候，总是插入到dictEntry的头部。因为新数据接下来被访问的概率可能比较高，这样再次查找它时就比较次数较少。
