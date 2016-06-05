@@ -95,7 +95,7 @@ typedef struct dict {
 
 为了能更清楚地展示dict的数据结构定义，我们用一张结构图来表示它。如下。
 
-[<img src="/assets/photos_redis/redis_dict_structure.png" style="width:600px" alt="RxJava流程图" />](/assets/photos_redis/redis_dict_structure.png)
+[<img src="/assets/photos_redis/redis_dict_structure.png" style="width:600px" alt="Redis dict结构图" />](/assets/photos_redis/redis_dict_structure.png)
 
 结合上面的代码和结构图，可以很清楚地看出dict的结构。一个dict由如下若干项组成：
 
