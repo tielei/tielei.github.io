@@ -2,7 +2,7 @@
 layout: post
 category: "server"
 title: "Redis内部数据结构详解(2)——sds"
-date: 2016-06-05 07:30:00 +0800
+date: 2016-06-05 18:30:00 +0800
 published: true
 ---
 
@@ -26,7 +26,7 @@ published: true
 
 * 初始的字符串的值设为"tielei"。
 * 第3步通过append命令对字符串进行了追加，变成了"tielei zhang"。
-* 然后通过setbit命令将第53个bit设置成了1。bit的偏移量从左边开始算，从0开始。其中第48～55bit是中间空格那个字符，它的ASCII码是0x20。将第53个bit设置成1之后，它的ASCII码变成了0x24，打印出来就是'$'。因此，现在字符串的值变成了"tielei$zhang"。
+* 然后通过setbit命令将第53个bit设置成了1。bit的偏移量从左边开始算，从0开始。其中第48～55bit是中间的空格那个字符，它的ASCII码是0x20。将第53个bit设置成1之后，它的ASCII码变成了0x24，打印出来就是'$'。因此，现在字符串的值变成了"tielei$zhang"。
 * 最后通过getrange取从倒数第5个字节到倒数第1个字节的内容，得到"zhang"。
 
 这些命令的实现，有一部分是和sds的实现有关的。下面我们开始详细讨论。
@@ -41,7 +41,7 @@ published: true
 typedef char *sds;
 {% endhighlight %}
 
-肯定有人感到困惑了，竟然sds就等同于char *？我们前面提到过，sds和传统的C语言字符串保持类型兼容，因此它们的类型定义是一样的，都是char *。在有些情况下，需要传入一个C语言字符串的地方，也确实可以传入一个sds。但是，sds和char *并不等同。sds是Binary Safe的，它可以存储任意二进制数据，不能像C语言字符串那样以字符'\0'来标识字符串的结束，因此它必然有个长度字段。但这个长度字段在哪里呢？实际上sds还包含一个header：
+肯定有人感到困惑了，竟然sds就等同于char *？我们前面提到过，sds和传统的C语言字符串保持类型兼容，因此它们的类型定义是一样的，都是char *。在有些情况下，需要传入一个C语言字符串的地方，也确实可以传入一个sds。但是，sds和char *并不等同。sds是Binary Safe的，它可以存储任意二进制数据，不能像C语言字符串那样以字符'\0'来标识字符串的结束，因此它必然有个长度字段。但这个长度字段在哪里呢？实际上sds还包含一个header结构：
 
 {% highlight c linenos %}
 struct __attribute__ ((__packed__)) sdshdr5 {
@@ -147,7 +147,7 @@ sds的字符指针（s1和s2）就是指向真正的数据（字符数组）开�
 * sdsHdrSize(char type): 根据header类型得到header大小。
 * sdsReqType(size_t string_size): 根据字符串数据长度计算所需要的header类型。
 
-这里我们挑选sdslen和sdsReqType的代码，查看一下。
+这里我们挑选sdslen和sdsReqType的代码，察看一下。
 
 {% highlight c linenos %}
 static inline size_t sdslen(const sds s) {
@@ -180,7 +180,7 @@ static inline char sdsReqType(size_t string_size) {
 }
 {% endhighlight %}
 
-跟前面分析类似，sdslen先用s[-1]向低地址方向偏移1个字节，得到flags；然后与SDS_TYPE_MASK进行按位与，得到header类型；然后根据不同的header类型，调用SDS_HDR得到header起始指针，进而获得len字段。
+跟前面的分析类似，sdslen先用s[-1]向低地址方向偏移1个字节，得到flags；然后与SDS_TYPE_MASK进行按位与，得到header类型；然后根据不同的header类型，调用SDS_HDR得到header起始指针，进而获得len字段。
 
 通过sdsReqType的代码，很容易看到：
 
@@ -188,9 +188,9 @@ static inline char sdsReqType(size_t string_size) {
 * 长度在2^5和2^8-1之间，选用SDS_TYPE_8类型的header。
 * 长度在2^8和2^16-1之间，选用SDS_TYPE_16类型的header。
 * 长度在2^16和2^32-1之间，选用SDS_TYPE_32类型的header。
-* 长度大于2^32的，选用SDS_TYPE_64类型的header。能表示的最大长度为2^64。
+* 长度大于2^32的，选用SDS_TYPE_64类型的header。能表示的最大长度为2^64-1。
 
-注：sdsReqType的实现代码，直到3.2.0，它在长度边界值上都一直有问题，直到最近3.2 branch上的[commit 6032340](https://github.com/antirez/redis/commit/603234076f4e59967f331bc97de3c0db9947c8ef){:target="_blank"}才修复。
+注：sdsReqType的实现代码，直到3.2.0，它在长度边界值上都一直存在问题，直到最近3.2 branch上的[commit 6032340](https://github.com/antirez/redis/commit/603234076f4e59967f331bc97de3c0db9947c8ef){:target="_blank"}才修复。
 
 #### sds的创建和销毁
 
@@ -266,7 +266,7 @@ void sdsfree(sds s) {
 }
 {% endhighlight %}
 
-sdsnewlen创建一个长度为initlen的sds字符串，并使用init指向的字符数组（任意二级制数据）来初始化数据。如果init为NULL，那么使用全0来初始化数据。它的实现中，我们需要注意的是：
+sdsnewlen创建一个长度为initlen的sds字符串，并使用init指向的字符数组（任意二进制数据）来初始化数据。如果init为NULL，那么使用全0来初始化数据。它的实现中，我们需要注意的是：
 
 * 如果要创建一个长度为0的空字符串，那么不使用SDS_TYPE_5类型的header，而是转而使用SDS_TYPE_8类型的header。这是因为创建的空字符串一般接下来的操作很可能是追加数据，但SDS_TYPE_5类型的sds字符串不适合追加数据（会引发内存重新分配）。
 * 需要的内存空间一次性进行分配，其中包含三部分：header、数据、最后的多余字节（hdrlen+initlen+1）。
@@ -349,12 +349,12 @@ sdscatlen将t指向的长度为len的任意二进制数据追加到sds字符串s
 sdsMakeRoomFor是sds实现中很重要的一个函数。关于它的实现代码，我们需要注意的是：
 
 * 如果原来字符串中的空余空间够用（avail >= addlen），那么它什么也不做，直接返回。
-* 如果需要分配空间，它会比实际请求的多分配一些，以防备接下来继续追加。它至少多分配SDS_MAX_PREALLOC个字节，这个常量在sds.h中定义为(1024*1024)=1MB。
+* 如果需要分配空间，它会比实际请求的要多分配一些，以防备接下来继续追加。它在字符串已经比较长的情况下要至少多分配SDS_MAX_PREALLOC个字节，这个常量在sds.h中定义为(1024*1024)=1MB。
 * 按分配后的空间大小，可能需要更换header类型（原来header的alloc字段太短，表达不了增加后的容量）。
 * 如果需要更换header，那么整个字符串空间（包括header）都需要重新分配（s_malloc），并拷贝原来的数据到新的位置。
 * 如果不需要更换header（原来的header够用），那么调用一个比较特殊的s_realloc，试图在原来的地址上重新分配空间。s_realloc的具体实现得看Redis编译的时候选用了哪个allocator（在Linux上默认使用jemalloc）。但不管是哪个realloc的实现，它所表达的含义基本是相同的：它尽量在原来分配好的地址位置重新分配，如果原来的地址位置有足够的空余空间完成重新分配，那么它返回的新地址与传入的旧地址相同；否则，它分配新的地址块，并进行数据搬迁。参见<http://man.cx/realloc>{:target="_blank"}。
 
-从sdscatlen的函数接口，我们可以看到一种使用模式：调用它的时候，传入一个sds的旧的变量，然后它返回一个新的sds变量。由于它的内部实现可能会造成地址变化，因此调用者在调用完之后，原来旧的变量就失效了，而都应该用新返回的变量来替换。不仅仅是sdscatlen函数，sds中的其它函数（比如sdscpy、sdstrim、sdsjoin等），还有Redis中其它一些能自动扩展内存的数据结构（如ziplist），也都是同样的使用模式。
+从sdscatlen的函数接口，我们可以看到一种使用模式：调用它的时候，传入一个旧的sds变量，然后它返回一个新的sds变量。由于它的内部实现可能会造成地址变化，因此调用者在调用完之后，原来旧的变量就失效了，而都应该用新返回的变量来替换。不仅仅是sdscatlen函数，sds中的其它函数（比如sdscpy、sdstrim、sdsjoin等），还有Redis中其它一些能自动扩展内存的数据结构（如ziplist），也都是同样的使用模式。
 
 
 #### 浅谈sds与string的关系
