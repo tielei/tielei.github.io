@@ -17,7 +17,7 @@ Career: 微爱CTO (now) | 人人网 | 摩托罗拉(中国)
 GitHub: <https://github.com/tielei>{:target="_blank"}  
 我的微信公众号: tielei-blog (张铁蕾)
 
-![我的微信公众号](/assets/my_weixin_public.jpg)
+![我的微信公众号: tielei-blog (张铁蕾)](/assets/my_weixin_public.jpg)
 
 
 {% include comment.html %}
