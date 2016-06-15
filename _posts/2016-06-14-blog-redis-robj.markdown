@@ -278,12 +278,12 @@ robj *createStringObject(const char *ptr, size_t len) {
 * 确切地说，string在Redis中是用一个robj来表示的。
 * 用来表示string的robj可能编码成3种内部表示：OBJ_ENCODING_RAW, OBJ_ENCODING_EMBSTR, OBJ_ENCODING_INT。其中前两种编码使用的是sds来存储，最后一种OBJ_ENCODING_INT编码直接把string存成了long型。
 * 在对string进行incr, decr等操作的时候，如果它内部是OBJ_ENCODING_INT编码，那么可以直接进行加减操作；如果它内部是OBJ_ENCODING_RAW或OBJ_ENCODING_EMBSTR编码，那么会先试图把sds存储的字符串转成long型，如果能转成功，再进行加减操作。
-* 对一个内部表示成long型的string执行append, setbit, getrange这些命令，针对的仍然是string的值（即十进制表示的字符串），而不是针对内部表示的long型进行操作。在这些命令的实现中，会把long型先转成字符串再进行相应的操作。由于篇幅原因，这三个命令的实现代码这里就不详细介绍了，有兴趣的读者可以参考Redis源码：
+* 对一个内部表示成long型的string执行append, setbit, getrange这些命令，针对的仍然是string的值（即十进制表示的字符串），而不是针对内部表示的long型进行操作。比如字符串"32"，如果按照字符数组来解释，它包含两个字符，它们的ASCII码分别是0x33和0x32。当我们执行命令setbit key 7 0的时候，相当于把字符0x33变成了0x32，这样字符串的值就变成了"22"。而如果将字符串"32"按照内部的64位long型来解释，那么它是0x0000000000000020，在这个基础上执行setbit位操作，结果就完全不对了。因此，在这些命令的实现中，会把long型先转成字符串再进行相应的操作。由于篇幅原因，这三个命令的实现代码这里就不详细介绍了，有兴趣的读者可以参考Redis源码：
   * t_string.c中的appendCommand函数；
   * biops.c中的setbitCommand函数；
   * t_string.c中的getrangeCommand函数。
 
-值得一提的是，append和setbit命令的实现中，都会最终调用到db.c中的dbUnshareStringValue函数，将string对象的内部编码转成OBJ_ENCODING_RAW的，并解除可能存在的对象共享状态。
+值得一提的是，append和setbit命令的实现中，都会最终调用到db.c中的dbUnshareStringValue函数，将string对象的内部编码转成OBJ_ENCODING_RAW的，并解除可能存在的对象共享状态。这里面调用了前面提到的getDecodedObject。
 
 {% highlight c %}
 robj *dbUnshareStringValue(redisDb *db, robj *key, robj *o) {
@@ -330,4 +330,8 @@ void decrRefCount(robj *o) {
 注意：Redis的del命令就依赖decrRefCount操作将value释放掉。
 
 ---
+
+经过了本文的讨论，我们很容易看出，robj所表示的就是Redis对外暴露的第一个层面的数据结构：string, list, hash, set, sorted set，而每一种数据结构的底层实现所对应的是哪个（或哪些）第二个层面的数据结构（dict, sds, ziplist, quicklist, skiplist, 等），则通过不同的encoding来区分。可以说，robj是联结两个层面的数据结构的桥梁。
+
+本文详细介绍了OBJ_STRING类型的字符串对象的底层实现，其编码和解码过程在Redis里非常重要，应用广泛，我们在后面的讨论中可能还会遇到。现在有了robj的概念基础，我们下一篇会讨论ziplist，以及它与hash的关系。
 
