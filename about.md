@@ -9,6 +9,7 @@ Name: Charles Zhang (张铁蕾)
 Gender: Male  
 City: Beijing, China   
 Career: 微爱CTO (now) | 人人网 | 摩托罗拉(中国)   
+Education: Tsinghua | BUPT   
 爱好: 诗词，小说，自然科学，Coding
 
 #### 2.My Links
