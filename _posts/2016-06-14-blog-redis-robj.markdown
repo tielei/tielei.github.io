@@ -20,7 +20,7 @@ published: true
 
 在server.h中我们找到跟robj定义相关的代码，如下（注意，本系列文章中的代码片段全部来源于Redis源码的3.2分支）：
 
-{% highlight c %}
+{% highlight c linenos %}
 /* Object types */
 #define OBJ_STRING 0
 #define OBJ_LIST 1
@@ -96,7 +96,7 @@ typedef struct redisObject {
 
 当我们执行Redis的set命令的时候，Redis首先将接收到的value值（string类型）表示成一个type = OBJ_STRING并且encoding = OBJ_ENCODING_RAW的robj对象，然后在存入内部存储之前先执行一个编码过程，试图将它表示成另一种更节省内存的encoding方式。这一过程的核心代码，是object.c中的tryObjectEncoding函数。
 
-{% highlight c %}
+{% highlight c linenos %}
 robj *tryObjectEncoding(robj *o) {
     long value;
     sds s = o->ptr;
@@ -197,7 +197,7 @@ robj *tryObjectEncoding(robj *o) {
 
 其中调用的createEmbeddedStringObject，我们有必要看一下它的代码：
 
-{% highlight c %}
+{% highlight c linenos %}
 robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);
     struct sdshdr8 *sh = (void*)(o+1);
@@ -236,7 +236,7 @@ createEmbeddedStringObject对sds重新分配内存，将robj和sds放在一个�
 
 这一解码过程的核心代码，是object.c中的getDecodedObject函数。
 
-{% highlight c %}
+{% highlight c linenos %}
 robj *getDecodedObject(robj *o) {
     robj *dec;
 
@@ -261,7 +261,7 @@ robj *getDecodedObject(robj *o) {
 * 编码为OBJ_ENCODING_RAW和OBJ_ENCODING_EMBSTR的字符串robj对象，不做变化，原封不动返回。站在使用者的角度，这两种编码没有什么区别，内部都是封装的sds。
 * 编码为数字的字符串robj对象，将long重新转为十进制字符串的形式，然后调用createStringObject转为sds的表示。注意：这里由long转成的sds字符串长度肯定不超过20，而根据createStringObject的实现，它们肯定会被编码成OBJ_ENCODING_EMBSTR的对象。createStringObject的代码如下：
 
-{% highlight c %}
+{% highlight c linenos %}
 robj *createStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
         return createEmbeddedStringObject(ptr,len);
@@ -284,7 +284,7 @@ robj *createStringObject(const char *ptr, size_t len) {
 
 值得一提的是，append和setbit命令的实现中，都会最终调用到db.c中的dbUnshareStringValue函数，将string对象的内部编码转成OBJ_ENCODING_RAW的（只有这种编码的robj对象，其内部的sds 才能在后面自由追加新的内容），并解除可能存在的对象共享状态。这里面调用了前面提到的getDecodedObject。
 
-{% highlight c %}
+{% highlight c linenos %}
 robj *dbUnshareStringValue(redisDb *db, robj *key, robj *o) {
     serverAssert(o->type == OBJ_STRING);
     if (o->refcount != 1 || o->encoding != OBJ_ENCODING_RAW) {
@@ -301,7 +301,7 @@ robj *dbUnshareStringValue(redisDb *db, robj *key, robj *o) {
 
 将robj的引用计数加1和减1的操作，定义在object.c中：
 
-{% highlight c %}
+{% highlight c linenos %}
 void incrRefCount(robj *o) {
     o->refcount++;
 }
