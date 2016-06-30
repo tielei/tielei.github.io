@@ -1,7 +1,7 @@
 ---
 layout: post
 category: [ios,android]
-title: "用树型模型来管理App里的数字和红点显示"
+title: "用树型模型管理App数字和红点提示"
 date: 2016-06-30 23:50:00 +0800
 published: true
 ---
