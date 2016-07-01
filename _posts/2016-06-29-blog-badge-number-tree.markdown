@@ -20,9 +20,9 @@ published: true
 
 如果您现在手头正好有一部Android手机，那么您可以先扫描下面的二维码（或点击二维码下面的下载链接）下载安装这个Demo，花几分钟看看它是否对您有用。
 
-[<img src="/assets/photos_badge_number_tree/demo_apk_download.png" style="width:150px" alt="Demo APK Download" />](/assets/photos_badge_number_tree/demo_apk_download.png)
+[<img src="/assets/photos_badge_number_tree/demo_apk_download_v1.1.png" style="width:150px" alt="Demo APK Download" />](/assets/photos_badge_number_tree/demo_apk_download_v1.1.png)
 
-或者点击[下载链接](http://pan.baidu.com/s/1eSmFdB0){:target="_blank"}。
+或者点击[下载链接](http://pan.baidu.com/s/1hspYLve){:target="_blank"}。
 
 #### 朴素的数字红点管理方式
 
