@@ -106,7 +106,7 @@ ziplist的数据结构组成是本文要讨论的重点。实际上，ziplist还
 * 字符串: "age"
 * 整数: 20
 
-（好吧，被你发现了~~tielei实际上当然不是20岁，我哪有那么年轻......）
+（好吧，被你发现了~~tielei实际上当然不是20岁，他哪有那么年轻啊......）
 
 实际上，这个ziplist是通过两个`hset`命令创建出来的。这个我们后半部分会再提到。
 
@@ -116,7 +116,7 @@ ziplist的数据结构组成是本文要讨论的重点。实际上，ziplist还
 
 #### ziplist的接口
 
-我们先不着急看实现，先来挑几个ziplist重要的接口，来看看它们长什么样子：
+我们先不着急看实现，先来挑几个ziplist的重要的接口，看看它们长什么样子：
 
 ```c
 unsigned char *ziplistNew(void);
@@ -141,7 +141,7 @@ unsigned int ziplistLen(unsigned char *zl);
 * ziplistNext和ziplistPrev分别返回一个ziplist中指定数据项p的后一项和前一项。
 * ziplistInsert: 在ziplist的任意数据项前面插入一个新的数据项。
 * ziplistDelete: 删除指定的数据项。
-* ziplistFind: 查找给定的数据项（由vstr和vlen指定）。注意它有一个skip参数，表示查找的时候每次比较之间要跳过几个数据项。为什么会有这么一个参数呢？其实这个参数的主要用途是当用ziplist表示hash结构的时候，是按照一个field，一个value来依次存入ziplist的。也就是说，偶数索引的数据项存field，奇数索引的数据项存value。当按照field的值进行查找的时候，就需要把奇数项跳过去。
+* ziplistFind: 查找给定的数据（由vstr和vlen指定）。注意它有一个skip参数，表示查找的时候每次比较之间要跳过几个数据项。为什么会有这么一个参数呢？其实这个参数的主要用途是当用ziplist表示hash结构的时候，是按照一个field，一个value来依次存入ziplist的。也就是说，偶数索引的数据项存field，奇数索引的数据项存value。当按照field的值进行查找的时候，就需要把奇数项跳过去。
 * ziplistLen: 计算ziplist的长度（即包含数据项的个数）。
 
 #### ziplist的插入逻辑解析
@@ -244,21 +244,21 @@ static unsigned char *__ziplistInsert(unsigned char *zl, unsigned char *p, unsig
 
 我们来简单解析一下这段代码：
 
-* 这个函数是在指定的位置p插入一段新的数据，新的数据指针是s，长度为slen。插入后形成一个新的数据项，占据原来p的配置，原来位于p位置的数据项以及后面的所有数据项，需要统一向后移动，给新插入的数据项留出空间。p指向的是ziplist中某一个数据项的起始位置，或者在向尾端插入的时候，它指向ziplist的结束标记`<zlend>`。
+* 这个函数是在指定的位置p插入一段新的数据，待插入数据的地址指针是s，长度为slen。插入后形成一个新的数据项，占据原来p的配置，原来位于p位置的数据项以及后面的所有数据项，需要统一向后移动，给新插入的数据项留出空间。参数p指向的是ziplist中某一个数据项的起始位置，或者在向尾端插入的时候，它指向ziplist的结束标记`<zlend>`。
 * 函数开始先计算出待插入位置前一个数据项的长度`prevlen`。这个长度要存入新插入的数据项的`<prevrawlen>`字段。
-* 然后计算当前数据项占用的总字节数reqlen，它包含三部分：`<prevrawlen>`, `<len>`和真正的数据。其中的数据部分会通过调用`zipTryEncoding`先来尝试转成整数。
-* 由于插入导致的ziplist对于内存的新增需求，除了待插入数据项占用的reqlen之外，还要考虑原来p位置的数据项（现在要排在待插入数据项之后）的`<prevrawlen>`字段的变化。本来它保存的是前一项的总长度，现在变成了保存当前插入的数据项的总长度。这样它的`<prevrawlen>`字段本身需要的存储空间也可能发生变化，这个变化可能是变大也可能是变小。这个变化了多少的值`nextdiff`，是调用`zipPrevLenByteDiff`计算出来的。如果变大了，`nextdiff`是正值，否则是负值。
+* 然后计算当前数据项占用的总字节数`reqlen`，它包含三部分：`<prevrawlen>`, `<len>`和真正的数据。其中的数据部分会通过调用`zipTryEncoding`先来尝试转成整数。
+* 由于插入导致的ziplist对于内存的新增需求，除了待插入数据项占用的`reqlen`之外，还要考虑原来p位置的数据项（现在要排在待插入数据项之后）的`<prevrawlen>`字段的变化。本来它保存的是前一项的总长度，现在变成了保存当前插入的数据项的总长度。这样它的`<prevrawlen>`字段本身需要的存储空间也可能发生变化，这个变化可能是变大也可能是变小。这个变化了多少的值`nextdiff`，是调用`zipPrevLenByteDiff`计算出来的。如果变大了，`nextdiff`是正值，否则是负值。
 * 现在很容易算出来插入后新的ziplist需要多少字节了，然后调用`ziplistResize`来重新调整大小。ziplistResize的实现里会调用allocator的`zrealloc`，它有可能会造成数据拷贝。
 * 现在额外的空间有了，接下来就是将原来p位置的数据项以及后面的所有数据都向后挪动，并为它设置新的`<prevrawlen>`字段。此外，还可能需要调整ziplist的`<zltail>`字段。
 * 最后，组装新的待插入数据项，放在位置p。
 
 #### hash与ziplist
 
-hash是Redis中可以用来存储一个对象结构的理想数据类型。一个对象的各个属性，正好对应一个hash结构的各个field。
+hash是Redis中可以用来存储一个对象结构的比较理想的数据类型。一个对象的各个属性，正好对应一个hash结构的各个field。
 
 我们在网上很容易找到这样一些技术文章，它们会说存储一个对象，使用hash比string要节省内存。实际上这么说是有前提的，具体取决于对象怎么来存储。如果你把对象的多个属性存储到多个key上（各个属性值存成string），当然占的内存要多。但如果你采用一些序列化方法，比如[Protocol Buffers](https://github.com/google/protobuf){:target="_blank"}，或者[Apache Thrift](https://thrift.apache.org/){:target="_blank"}，先把对象序列化为字节数组，然后再存入到Redis的string中，那么跟hash相比，哪一种更省内存，就不一定了。
 
-当然，hash比序列化后存入string的方式，在支持的操作命令上，还是有优势的：它既支持多个field同时存取（`hmset/hmget`），也支持按照某个特定的field单独存取（`hset/hget`）。
+当然，hash比序列化后再存入string的方式，在支持的操作命令上，还是有优势的：它既支持多个field同时存取（`hmset`/`hmget`），也支持按照某个特定的field单独存取（`hset`/`hget`）。
 
 实际上，hash随着数据的增大，其底层数据结构的实现是会发生变化的，当然存储效率也就不同。在field比较少，各个value值也比较小的时候，hash采用ziplist来实现；而随着field增多和value值增大，hash可能会变成dict来实现。当hash底层变成dict来实现的时候，它的存储效率就没法跟那些序列化方式相比了。
 
@@ -275,7 +275,7 @@ robj *createHashObject(void) {
 
 上面的`createHashObject`函数，出自object.c，它负责的任务就是创建一个新的hash结构。可以看出，它创建了一个`type = OBJ_HASH`但`encoding = OBJ_ENCODING_ZIPLIST`的robj对象。
 
-实际上，本文前面给出的那个zipliset实例，就是由如下两个命令构建出来的。
+实际上，本文前面给出的那个ziplist实例，就是由如下两个命令构建出来的。
 
 ```
 hset user:100 name tielei
@@ -284,7 +284,7 @@ hset user:100 age 20
 
 每执行一次`hset`命令，插入的field和value分别作为一个新的数据项插入到ziplist中（即每次`hset`产生两个数据项）。
 
-当随着数据的插入，hash底层的这个ziplist可能会转成dict。那么到底插入多少才会转呢？
+当随着数据的插入，hash底层的这个ziplist就可能会转成dict。那么到底插入多少才会转呢？
 
 还记得本文开头提到的两个Redis配置吗？
 
@@ -295,13 +295,13 @@ hash-max-ziplist-value 64
 
 这个配置的意思是说，在如下两个条件之一满足的时候，ziplist会转成dict：
 
-* 当hash中的项的数目超过512的时候，也就是ziplist数据项超过1024的时候（请参考t_hash.c中的`hashTypeSet`函数）。
+* 当hash中的数据项（即field-value对）的数目超过512的时候，也就是ziplist数据项超过1024的时候（请参考t_hash.c中的`hashTypeSet`函数）。
 * 当hash中插入的任意一个value的长度超过了64的时候（请参考t_hash.c中的`hashTypeTryConversion`函数）。
 
 Redis的hash之所以这样设计，是因为当ziplist变得很大的时候，它有如下几个缺点：
 
 * 每次插入或修改引发的realloc操作会有更大的概率造成内存拷贝，从而降低性能。
-* 一旦发生内存拷贝，内存拷贝的成本也相应增加，因为要拷贝很大的一块数据。
+* 一旦发生内存拷贝，内存拷贝的成本也相应增加，因为要拷贝更大的一块数据。
 * 当ziplist数据项过多的时候，在它上面查找指定的数据项就会性能变得很低，因为ziplist上的查找需要进行遍历。
 
 总之，ziplist本来就设计为各个数据项挨在一起组成连续的内存空间，这种结构并不擅长做修改操作。一旦数据发生改动，就会引发内存realloc，可能导致内存拷贝。
