@@ -110,9 +110,202 @@ ziplist的数据结构组成是本文要讨论的重点。实际上，ziplist还
 
 实际上，这个ziplist是通过两个hset命令创建出来的。这个我们后半部分会再提到。
 
-好了，既然你已经看到这了，说明你还是很有耐心的。可以先把本文收藏，休息一下，回头再看后半部分。
+好了，既然你已经看到这了，说明你还是很有耐心的（其实我写到这里也已经累得不行了）。可以先把本文收藏，休息一下，回头再看后半部分。
 
 接下来我要贴一些代码了。
 
+#### ziplist的接口
 
+我们先不着急看实现，先来挑几个ziplist重要的接口，来看看它们长什么样子：
 
+{% highlight c linenos %}
+unsigned char *ziplistNew(void);
+unsigned char *ziplistMerge(unsigned char **first, unsigned char **second);
+unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where);
+unsigned char *ziplistIndex(unsigned char *zl, int index);
+unsigned char *ziplistNext(unsigned char *zl, unsigned char *p);
+unsigned char *ziplistPrev(unsigned char *zl, unsigned char *p);
+unsigned char *ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char *s, unsigned int slen);
+unsigned char *ziplistDelete(unsigned char *zl, unsigned char **p);
+unsigned char *ziplistFind(unsigned char *p, unsigned char *vstr, unsigned int vlen, unsigned int skip);
+unsigned int ziplistLen(unsigned char *zl);
+{% endhighlight %}
+
+我们从这些接口的名字就可以粗略猜出它们的功能，下面简单解释一下：
+
+* ziplist的数据类型，没有用自定义的struct之类的来表达，而就是简单的unsigned char *。这是因为ziplist本质上就是一块连续内存，内部组成结构又是一个高度动态的设计（变长编码），也没法用一个固定的数据结构来表达。
+* ziplistNew: 创建一个空的ziplist（只包含&lt;zlbytes>&lt;zltail>&lt;zllen>&lt;zlend>）。
+* ziplistMerge: 将两个ziplist合并成一个新的ziplist。
+* ziplistPush: 在ziplist的头部或尾端插入一段数据（产生一个新的数据项）。注意一下这个接口的返回值，是一个新的ziplist。调用方必须用这里返回的新的ziplist，替换之前传进来的旧的ziplist变量，而经过这个函数处理之后，原来旧的ziplist变量就失效了。为什么一个简单的插入操作会导致产生一个新的ziplist呢？这是因为ziplist是一块连续空间，对它的追加操作，会引发内存的realloc，因此ziplist的内存位置可能会发生变化。实际上，我们在之前介绍sds的文章中提到过类似这种接口使用模式（参见sdscatlen函数的说明）。
+* ziplistIndex: 返回index参数指定的数据项的内存位置。index可以是负数，表示从尾端向前进行索引。
+* ziplistNext和ziplistPrev分别返回一个ziplist中指定数据项p的后一项和前一项。
+* ziplistInsert: 在ziplist的任意数据项前面插入一个新的数据项。
+* ziplistDelete: 删除指定的数据项。
+* ziplistFind: 查找给定的数据项（由vstr和vlen指定）。注意它有一个skip参数，表示查找的时候每次比较之间要跳过几个数据项。为什么会有这么一个参数呢？其实这个参数的主要用途是当用ziplist表示hash结构的时候，是按照一个field，一个value来依次存入ziplist的。也就是说，偶数索引的数据项存field，奇数索引的数据项存value。当按照field的值进行查找的时候，就需要把奇数项跳过去。
+* ziplistLen: 计算ziplist的长度（即包含数据项的个数）。
+
+#### ziplist的插入逻辑解析
+
+ziplist的相关接口的具体实现，还是有些复杂的，限于篇幅的原因，我们这里只结合代码来讲解插入的逻辑。插入是很有代表性的操作，通过这部分来一窥ziplist内部的实现，其它部分的实现我们也就会很容易理解了。
+
+ziplistPush和ziplistInsert都是插入，只是对于插入位置的限定不同。它们在内部实现都依赖一个名为__ziplistInsert的内部函数，其代码如下（出自ziplist.c）:
+
+{% highlight c linenos %}
+static unsigned char *__ziplistInsert(unsigned char *zl, unsigned char *p, unsigned char *s, unsigned int slen) {
+    size_t curlen = intrev32ifbe(ZIPLIST_BYTES(zl)), reqlen;
+    unsigned int prevlensize, prevlen = 0;
+    size_t offset;
+    int nextdiff = 0;
+    unsigned char encoding = 0;
+    long long value = 123456789; /* initialized to avoid warning. Using a value
+                                    that is easy to see if for some reason
+                                    we use it uninitialized. */
+    zlentry tail;
+
+    /* Find out prevlen for the entry that is inserted. */
+    if (p[0] != ZIP_END) {
+        ZIP_DECODE_PREVLEN(p, prevlensize, prevlen);
+    } else {
+        unsigned char *ptail = ZIPLIST_ENTRY_TAIL(zl);
+        if (ptail[0] != ZIP_END) {
+            prevlen = zipRawEntryLength(ptail);
+        }
+    }
+
+    /* See if the entry can be encoded */
+    if (zipTryEncoding(s,slen,&value,&encoding)) {
+        /* 'encoding' is set to the appropriate integer encoding */
+        reqlen = zipIntSize(encoding);
+    } else {
+        /* 'encoding' is untouched, however zipEncodeLength will use the
+         * string length to figure out how to encode it. */
+        reqlen = slen;
+    }
+    /* We need space for both the length of the previous entry and
+     * the length of the payload. */
+    reqlen += zipPrevEncodeLength(NULL,prevlen);
+    reqlen += zipEncodeLength(NULL,encoding,slen);
+
+    /* When the insert position is not equal to the tail, we need to
+     * make sure that the next entry can hold this entry's length in
+     * its prevlen field. */
+    nextdiff = (p[0] != ZIP_END) ? zipPrevLenByteDiff(p,reqlen) : 0;
+
+    /* Store offset because a realloc may change the address of zl. */
+    offset = p-zl;
+    zl = ziplistResize(zl,curlen+reqlen+nextdiff);
+    p = zl+offset;
+
+    /* Apply memory move when necessary and update tail offset. */
+    if (p[0] != ZIP_END) {
+        /* Subtract one because of the ZIP_END bytes */
+        memmove(p+reqlen,p-nextdiff,curlen-offset-1+nextdiff);
+
+        /* Encode this entry's raw length in the next entry. */
+        zipPrevEncodeLength(p+reqlen,reqlen);
+
+        /* Update offset for tail */
+        ZIPLIST_TAIL_OFFSET(zl) =
+            intrev32ifbe(intrev32ifbe(ZIPLIST_TAIL_OFFSET(zl))+reqlen);
+
+        /* When the tail contains more than one entry, we need to take
+         * "nextdiff" in account as well. Otherwise, a change in the
+         * size of prevlen doesn't have an effect on the *tail* offset. */
+        zipEntry(p+reqlen, &tail);
+        if (p[reqlen+tail.headersize+tail.len] != ZIP_END) {
+            ZIPLIST_TAIL_OFFSET(zl) =
+                intrev32ifbe(intrev32ifbe(ZIPLIST_TAIL_OFFSET(zl))+nextdiff);
+        }
+    } else {
+        /* This element will be the new tail. */
+        ZIPLIST_TAIL_OFFSET(zl) = intrev32ifbe(p-zl);
+    }
+
+    /* When nextdiff != 0, the raw length of the next entry has changed, so
+     * we need to cascade the update throughout the ziplist */
+    if (nextdiff != 0) {
+        offset = p-zl;
+        zl = __ziplistCascadeUpdate(zl,p+reqlen);
+        p = zl+offset;
+    }
+
+    /* Write the entry */
+    p += zipPrevEncodeLength(p,prevlen);
+    p += zipEncodeLength(p,encoding,slen);
+    if (ZIP_IS_STR(encoding)) {
+        memcpy(p,s,slen);
+    } else {
+        zipSaveInteger(p,value,encoding);
+    }
+    ZIPLIST_INCR_LENGTH(zl,1);
+    return zl;
+}
+{% endhighlight %}
+
+我们来简单解析一下这段代码：
+
+* 这个函数是在指定的位置p插入一段新的数据，新的数据指针是s，长度为slen。插入后形成一个新的数据项，占据原来p的配置，原来位于p位置的数据项以及后面的所有数据项，需要统一向后移动，给新插入的数据项留出空间。p指向的是ziplist中某一个数据项的起始位置，或者在向尾端插入的时候，它指向ziplist的结束标记&lt;zlend>。
+* 函数开始先计算出待插入位置前一个数据项的长度prevlen。这个长度要存入新插入的数据项的&lt;prevrawlen>字段。
+* 然后计算当前数据项占用的总字节数reqlen，它包含三部分：&lt;prevrawlen>, &lt;len>和真正的数据。其中的数据部分会通过调用zipTryEncoding先来尝试转成整数。
+* 由于插入导致的ziplist对于内存的新增需求，除了待插入数据项占用的reqlen之外，还要考虑原来p位置的数据项（现在要排在待插入数据项之后）的&lt;prevrawlen>字段的变化。本来它保存的是前一项的总长度，现在变成了保存当前插入的数据项的总长度。这样它的&lt;prevrawlen>字段本身需要的存储空间也可能发生变化，这个变化可能是变大也可能是变小。这个变化了多少的值nextdiff，是调用zipPrevLenByteDiff计算出来的。如果变大了，nextdiff是正值，否则是负值。
+* 现在很容易算出来插入后新的ziplist需要多少字节了，然后调用ziplistResize来重新调整大小。ziplistResize的实现里会调用allocator的zrealloc，它有可能会造成数据拷贝。
+* 现在额外的空间有了，接下来就是将原来p位置的数据项以及后面的所有数据都向后挪动，并为它设置新的&lt;prevrawlen>字段。此外，还可能需要调整ziplist的&lt;zltail>字段。
+* 最后，组装新的待插入数据项，放在位置p。
+
+#### hash与ziplist
+
+hash是Redis中可以用来存储一个对象结构的理想数据类型。一个对象的各个属性，正好对应一个hash结构的各个field。
+
+我们在网上很容易找到这样一些技术文章，它们会说存储一个对象，使用hash比string要节省内存。实际上这么说是有前提的，具体取决于对象怎么来存储。如果你把对象的多个属性存储到多个key上（各个属性值存成string），当然占的内存要多。但如果你采用一些序列化方法，比如[Protocol Buffers](https://github.com/google/protobuf){:target="_blank"}，或者[Apache Thrift](https://thrift.apache.org/){:target="_blank"}，先把对象序列化为字节数组，然后再存入到Redis的string中，那么跟hash相比，哪一种更省内存，就不一定了。
+
+当然，hash比序列化后存入string的方式，在支持的操作命令上，还是有优势的：它既支持多个field同时存取（hmset/hmget），也支持按照某个特定的field单独存取（hset/hget）。
+
+实际上，hash随着数据的增大，其底层数据结构的实现是会发生变化的，当然存储效率也就不同。在field比较少，各个value值也比较小的时候，hash采用ziplist来实现；而随着field增多和value值增大，hash可能会变成dict来实现。当hash底层变成dict来实现的时候，它的存储效率就没法跟那些序列化方式相比了。
+
+当我们为某个key第一次执行 **hset key field value** 命令的时候，Redis会创建一个hash结构，这个新创建的hash底层就是一个ziplist。
+
+{% highlight c linenos %}
+robj *createHashObject(void) {
+    unsigned char *zl = ziplistNew();
+    robj *o = createObject(OBJ_HASH, zl);
+    o->encoding = OBJ_ENCODING_ZIPLIST;
+    return o;
+}
+{% endhighlight %}
+
+上面的createHashObject函数，出自object.c，它负责的任务就是创建一个新的hash结构。可以看出，它创建了一个type = OBJ_HASH但encoding = OBJ_ENCODING_ZIPLIST的robj对象。
+
+实际上，本文前面给出的那个zipliset实例，就是由如下两个命令构建出来的。
+
+{% highlight java %}
+hset user:100 name tielei
+hset user:100 age 20
+{% endhighlight %}
+
+每执行一次hset命令，插入的field和value分别作为一个新的数据项插入到ziplist中（即每次hset产生两个数据项）。
+
+当随着数据的插入，hash底层的这个ziplist可能会转成dict。那么到底插入多少才会转呢？
+
+还记得本文开头提到的两个Redis配置吗？
+
+{% highlight java %}
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
+{% endhighlight %}
+
+这个配置的意思是说，在如下两个条件之一满足的时候，ziplist会转成dict：
+
+* 当hash中的项的数目超过512的时候，也就是ziplist数据项超过1024的时候（请参考t_hash.c中的hashTypeSet函数）。
+* 当hash中插入的任意一个value的长度超过了64的时候（请参考t_hash.c中的hashTypeTryConversion函数）。
+
+Redis的hash之所以这样设计，是因为当ziplist变得很大的时候，它有如下几个缺点：
+
+* 每次插入或修改引发的realloc操作会有更大的概率造成内存拷贝，从而降低性能。
+* 一旦发生内存拷贝，内存拷贝的成本也相应增加，因为要拷贝很大的一块数据。
+* 当ziplist数据项过多的时候，在它上面查找指定的数据项就会性能变得很低，因为ziplist上的查找需要进行遍历。
+
+总之，ziplist本来就设计为各个数据项挨在一起组成连续的内存空间，这种结构并不擅长做修改操作。一旦数据发生改动，就会引发内存realloc，可能导致内存拷贝。
+
+---
+
+下一篇我们将介绍quicklist，敬请期待。
