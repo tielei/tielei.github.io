@@ -37,13 +37,13 @@ published: true
 
 我们可以在sds.h中找到sds的类型定义：
 
-{% highlight c %}
+```c
 typedef char *sds;
-{% endhighlight %}
+```
 
 肯定有人感到困惑了，竟然sds就等同于char *？我们前面提到过，sds和传统的C语言字符串保持类型兼容，因此它们的类型定义是一样的，都是char *。在有些情况下，需要传入一个C语言字符串的地方，也确实可以传入一个sds。但是，sds和char *并不等同。sds是Binary Safe的，它可以存储任意二进制数据，不能像C语言字符串那样以字符'\0'来标识字符串的结束，因此它必然有个长度字段。但这个长度字段在哪里呢？实际上sds还包含一个header结构：
 
-{% highlight c linenos %}
+```c
 struct __attribute__ ((__packed__)) sdshdr5 {
     unsigned char flags; /* 3 lsb of type, and 5 msb of string length */
     char buf[];
@@ -72,7 +72,7 @@ struct __attribute__ ((__packed__)) sdshdr64 {
     unsigned char flags; /* 3 lsb of type, 5 unused bits */
     char buf[];
 };
-{% endhighlight %}
+```
 
 sds一共有5种类型的header。之所以有5种，是为了能让不同长度的字符串可以使用不同大小的header。这样，短字符串就能使用较小的header，从而节省内存。
 
@@ -87,13 +87,13 @@ sds一共有5种类型的header。之所以有5种，是为了能让不同长度
 * alloc: 表示字符串的最大容量（不包含最后多余的那个字节）。
 * flags: 总是占用一个字节。其中的最低3个bit用来表示header的类型。header的类型共有5种，在sds.h中有常量定义。
 
-{% highlight c linenos %}
+```c
 #define SDS_TYPE_5  0
 #define SDS_TYPE_8  1
 #define SDS_TYPE_16 2
 #define SDS_TYPE_32 3
 #define SDS_TYPE_64 4
-{% endhighlight %}
+```
 
 sds的数据结构，我们有必要非常仔细地去解析它。
 
@@ -103,13 +103,13 @@ sds的数据结构，我们有必要非常仔细地去解析它。
 
 sds的字符指针（s1和s2）就是指向真正的数据（字符数组）开始的位置，而header位于内存地址较低的方向。在sds.h中有一些跟解析header有关的宏定义：
 
-{% highlight c linenos %}
+```c
 #define SDS_TYPE_MASK 7
 #define SDS_TYPE_BITS 3
 #define SDS_HDR_VAR(T,s) struct sdshdr##T *sh = (void*)((s)-(sizeof(struct sdshdr##T)));
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
-{% endhighlight %}
+```
 
 其中SDS_HDR用来从sds字符串获得header起始位置的指针，比如SDS_HDR(8, s1)表示s1的header指针，SDS_HDR(16, s2)表示s2的header指针。
 
@@ -149,7 +149,7 @@ sds的字符指针（s1和s2）就是指向真正的数据（字符数组）开�
 
 这里我们挑选sdslen和sdsReqType的代码，察看一下。
 
-{% highlight c linenos %}
+```c
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -178,7 +178,7 @@ static inline char sdsReqType(size_t string_size) {
         return SDS_TYPE_32;
     return SDS_TYPE_64;
 }
-{% endhighlight %}
+```
 
 跟前面的分析类似，sdslen先用s[-1]向低地址方向偏移1个字节，得到flags；然后与SDS_TYPE_MASK进行按位与，得到header类型；然后根据不同的header类型，调用SDS_HDR得到header起始指针，进而获得len字段。
 
@@ -194,7 +194,7 @@ static inline char sdsReqType(size_t string_size) {
 
 #### sds的创建和销毁
 
-{% highlight c linenos %}
+```c
 sds sdsnewlen(const void *init, size_t initlen) {
     void *sh;
     sds s;
@@ -264,7 +264,7 @@ void sdsfree(sds s) {
     if (s == NULL) return;
     s_free((char*)s-sdsHdrSize(s[-1]));
 }
-{% endhighlight %}
+```
 
 sdsnewlen创建一个长度为initlen的sds字符串，并使用init指向的字符数组（任意二进制数据）来初始化数据。如果init为NULL，那么使用全0来初始化数据。它的实现中，我们需要注意的是：
 
@@ -276,7 +276,7 @@ sdsnewlen创建一个长度为initlen的sds字符串，并使用init指向的字
 
 #### sds的连接（追加）操作
 
-{% highlight c linenos %}
+```c
 sds sdscatlen(sds s, const void *t, size_t len) {
     size_t curlen = sdslen(s);
 
@@ -340,7 +340,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     sdssetalloc(s, newlen);
     return s;
 }
-{% endhighlight %}
+```
 
 sdscatlen将t指向的长度为len的任意二进制数据追加到sds字符串s的后面。本文开头演示的string的append命令，内部就是调用sdscatlen来实现的。
 
