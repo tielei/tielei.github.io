@@ -333,3 +333,7 @@ void decrRefCount(robj *o) {
 经过了本文的讨论，我们很容易看出，robj所表示的就是Redis对外暴露的第一层面的数据结构：string, list, hash, set, sorted set，而每一种数据结构的底层实现所对应的是哪个（或哪些）第二层面的数据结构（dict, sds, ziplist, quicklist, skiplist, 等），则通过不同的encoding来区分。可以说，robj是联结两个层面的数据结构的桥梁。
 
 本文详细介绍了OBJ_STRING类型的字符串对象的底层实现，其编码和解码过程在Redis里非常重要，应用广泛，我们在后面的讨论中可能还会遇到。现在有了robj的概念基础，我们下一篇会讨论ziplist，以及它与hash的关系。
+
+---
+
+**后记**(追加于2016-07-09): 本文在解析“将string编码成long型”的代码时提到的判断21字节的问题，后来已经提交给@antirez并合并进了unstable分支，详见[commit f648c5a](https://github.com/antirez/redis/commit/f648c5a70c802aeb60ee9773dfdcf7cf08a06357){:target="_blank"}。
