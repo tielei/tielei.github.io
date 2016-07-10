@@ -242,6 +242,8 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 - (NetworkStatus) currentNetworkStatus {
     //此处代码忽略...
 }
+
+@end
 {% endhighlight %}
 
 上述代码封装了Reachability类的接口。当调用者想开始网络状态监听时，就调用startNetworkMonitoring；监听完毕就调用stopNetworkMonitoring。我们设想中的长连接正好需要创建和调用Reachability对象来处理网络状态变化。它的代码的相关部分可能会如下所示（类名ServerConnection；头文件代码忽略）：
