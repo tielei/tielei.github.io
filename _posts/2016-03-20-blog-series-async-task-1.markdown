@@ -50,11 +50,11 @@ published: true
 
 下面，我们先从一个具体的小例子开始：Android中的Service Binding。
 
-{% highlight java linenos %}
-public class MyActivity extends Activity {
+```java
+public class ServiceBindingDemoActivity extends Activity {
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
-        ​public void onServiceDisconnected(ComponentName name) {
+        public void onServiceDisconnected(ComponentName name) {
             //解除Activity与Service的引用和监听关系
             ...
         }
@@ -63,8 +63,8 @@ public class MyActivity extends Activity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             //建立Activity与Service的引用和监听关系
             ...
-        }​​
-    }
+        }
+    };
 
     @Override
     public void onResume() {
@@ -84,7 +84,7 @@ public class MyActivity extends Activity {
         unbindService(serviceConnection);
     }
 }
-{% endhighlight %}
+```
 
 上面的例子展示了Activity和Service之间进行交互的一个典型用法。Activity在onResume的时候与Service绑定，在onPause的时候与Service解除绑定。在绑定成功后，onServiceConnected被调用，这时Activity拿到传进来的IBinder的实例（service参数），便可以通过方法调用的方式与Service进行通信（进程内或跨进程）。比如，这时在onServiceConnected中经常要进行的操作可能包括：将IBinder记录下来存入Activity的成员变量，以备后续调用；调用IBinder获取Service的当前状态；设置回调方法，以监听Service后续的事件变化；等等，诸如此类。
 
@@ -94,8 +94,8 @@ public class MyActivity extends Activity {
 
 像上面的分析一样，我们只要了解了异步任务bindService所能引发的所有可能情况，那就不难想出类似如下的应对措施。
 
-{% highlight java linenos %}
-public class MyActivity extends Activity {
+```java
+public class ServiceBindingDemoActivity extends Activity {
     /**
      * 指示本Activity是否处于running状态：执行过onResume就变为running状态。
      */
@@ -115,7 +115,7 @@ public class MyActivity extends Activity {
                 ...                
             }
         }​​
-    }
+    };
 
     @Override
     public void onResume() {
@@ -138,7 +138,7 @@ public class MyActivity extends Activity {
 
     }
 }
-{% endhighlight %}
+```
 
 下面我们再来看一个iOS的小例子。
 
