@@ -1,12 +1,12 @@
 ---
 layout: post
 category: [ios,android]
-title: "iOS和Android开发中的异步处理（二）——异步任务的回调"
+title: "Android和iOS开发中的异步处理（二）——异步任务的回调"
 date: 2016-05-11 12:00:00 +0800
 published: true
 ---
 
-本文是笔者的系列文章《[iOS和Android开发中的异步处理](/posts/blog-series-async-task-1.html)》的第二篇。在本篇文章中，我们主要讨论跟异步任务的回调有关的诸多问题。
+本文是笔者的系列文章《[Android和iOS开发中的异步处理](/posts/blog-series-async-task-1.html)》的第二篇。在本篇文章中，我们主要讨论跟异步任务的回调有关的诸多问题。
 
 在iOS中，回调通常表现为delegate的形式；而在Android中，回调通常以listener的形式存在。但不管表现形式如何，回调都是接口设计不可分割的一部分。回调接口设计的好坏，直接影响整个接口设计的成功与否。
 
@@ -327,7 +327,7 @@ isIndependentVideoAvailable:(BOOL)available;
 
 显然第3种模式最为灵活，因为它包含了前两种。
 
-为了能把执行代码调度到其它线程，我们需要使用在上一篇[iOS和Android开发中的异步处理（一）——概述](/posts/blog-series-async-task-1.html)最后提到的一些技术，比如iOS中的GCD、NSOperationQueue、performSelectorXXX方法，Android中的ExecutorService、AsyncTask、Handler，等等（注意：ExecutorService不能用于调度到主线程，只能用于调度到异步线程）。我们有必要对线程调度的实质加以理解：能把一段代码调度到某一个线程去执行，前提条件是那个线程有一个Event Loop。这个Loop顾名思义，就是一个循环，它不停地从消息队列里取出消息，然后处理。我们做线程调度的时候，相当于向这个队列里发送消息。这个队列本身在系统实现里已经保证是线程安全的（Thread Safe Queue），因此调用者就规避了线程安全问题。在客户端开发中，系统都会为主线程创建一个Loop，但非主线程则需要开发者自己来使用适当的技术进行创建。
+为了能把执行代码调度到其它线程，我们需要使用在上一篇[Android和iOS开发中的异步处理（一）——概述](/posts/blog-series-async-task-1.html)最后提到的一些技术，比如iOS中的GCD、NSOperationQueue、performSelectorXXX方法，Android中的ExecutorService、AsyncTask、Handler，等等（注意：ExecutorService不能用于调度到主线程，只能用于调度到异步线程）。我们有必要对线程调度的实质加以理解：能把一段代码调度到某一个线程去执行，前提条件是那个线程有一个Event Loop。这个Loop顾名思义，就是一个循环，它不停地从消息队列里取出消息，然后处理。我们做线程调度的时候，相当于向这个队列里发送消息。这个队列本身在系统实现里已经保证是线程安全的（Thread Safe Queue），因此调用者就规避了线程安全问题。在客户端开发中，系统都会为主线程创建一个Loop，但非主线程则需要开发者自己来使用适当的技术进行创建。
 
 在客户端编程的大多数情况下，我们一般会希望结果回调发生在主线程上，因为我们一般会在这个时机更新UI。而中间回调在哪个线程上执行，则取决于具体应用场景。在前面Downloader的例子中，中间回调downloadProgress是为了回传下载进度，下载进度一般也是为了在UI上展示，因此downloadProgress也是调度到主线程上执行更好一些。
 

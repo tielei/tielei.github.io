@@ -79,7 +79,7 @@ IAP同国内的支付宝、微信支付都是用于支付的平台接口，但�
 
 只有当某次发货请求执行成功后，App客户端才调用finishTransaction:将发货任务结束掉，并不再重试；否则，发货任务就等待一段时间重新进入上述启动发货任务的逻辑。
 
-在上述发货任务的实现逻辑中，涉及到异步编程以及如何取消一个异步任务。有关异步编程中需要注意的事项，请参见笔者的系列文章《[iOS和Android开发中的异步处理](/posts/blog-series-async-task-1.html)》
+在上述发货任务的实现逻辑中，涉及到异步编程以及如何取消一个异步任务。有关异步编程中需要注意的事项，请参见笔者的系列文章《[Android和iOS开发中的异步处理](/posts/blog-series-async-task-1.html)》
 
 第2点是使用App Receipt来代替transactionReceipt。这也正是苹果官方所强烈建议的，并且从iOS 7.0开始transactionReceipt已经被置为过期接口。实际上，App Receipt本身并不仅仅用于IAP订单的验证，还用于App本身的验证。你可以利用App Receipt的客户端本地验证来确保用户只能使用从App Store下载到的你的App版本（实际上这也是苹果希望App开发者去做的）。如果你的App需要付费才能下载，那么这个检验就非常有意义。
 

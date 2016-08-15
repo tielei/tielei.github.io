@@ -1,12 +1,12 @@
 ---
 layout: post
 category: [ios,android]
-title: "iOS和Android开发中的异步处理（三）——执行多个异步任务"
+title: "Android和iOS开发中的异步处理（三）——执行多个异步任务"
 date: 2016-05-18 23:30:00 +0800
 published: true
 ---
 
-本文是笔者的系列文章《[iOS和Android开发中的异步处理](/posts/blog-series-async-task-1.html)》的第三篇。在本篇文章中，我们主要讨论在执行多个异步任务的时候可能碰到的相关问题。
+本文是笔者的系列文章《[Android和iOS开发中的异步处理](/posts/blog-series-async-task-1.html)》的第三篇。在本篇文章中，我们主要讨论在执行多个异步任务的时候可能碰到的相关问题。
 
 通常我们都需要执行多个异步任务，使它们相互协作来完成需求。本文结合典型的应用场景，讲解异步任务的三种协作关系：
 
@@ -73,7 +73,7 @@ public interface AsyncCallback <D> {
 }
 {% endhighlight %}
 
-而发起网络请求下载图片文件，我们直接调用上一篇文章《[iOS和Android开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中介绍的Downloader接口（注：采用最后带有contextData参数的那一版本的Dowanloder接口）。
+而发起网络请求下载图片文件，我们直接调用上一篇文章《[Android和iOS开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中介绍的Downloader接口（注：采用最后带有contextData参数的那一版本的Dowanloder接口）。
 
 这样，“查找Disk Cache”和“发起网络下载请求”的代码示例如下：
 
@@ -339,7 +339,7 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
 }
 {% endhighlight %}
 
-为了判断两个异步请求是否“全部完成”了，我们需要在任一个请求回调时都去判断所有请求是否已经返回。这里需要注意的是，之所以我们能采取这样的判断方法，有一个很重要的前提：HttpService的onResult已经调度到主线程执行。我们在上一篇文章《[iOS和Android开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调的线程模型”一节，对回调发生的线程环境已经进行过讨论。在onResult已经调度到主线程执行的前提下，两个请求的onResult回调顺序只能有两种情况：先执行第一个请求的onResult再执行第二个请求的onResult；或者先执行第二个请求的onResult再执行第一个请求的onResult。不管是哪种顺序，上面代码中onResult内部的判断都是有效的。
+为了判断两个异步请求是否“全部完成”了，我们需要在任一个请求回调时都去判断所有请求是否已经返回。这里需要注意的是，之所以我们能采取这样的判断方法，有一个很重要的前提：HttpService的onResult已经调度到主线程执行。我们在上一篇文章《[Android和iOS开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调的线程模型”一节，对回调发生的线程环境已经进行过讨论。在onResult已经调度到主线程执行的前提下，两个请求的onResult回调顺序只能有两种情况：先执行第一个请求的onResult再执行第二个请求的onResult；或者先执行第二个请求的onResult再执行第一个请求的onResult。不管是哪种顺序，上面代码中onResult内部的判断都是有效的。
 
 然而，如果HttpService的onResult在不同的线程上执行，那么两个请求的onResult回调就可能交叉执行，那么里面的各种判断也会有同步问题。
 
@@ -433,7 +433,7 @@ public class PageCachingDemoActivity extends AppCompatActivity {
 }
 {% endhighlight %}
 
-虽然读取本地缓存数据通常来说比从网络获取数据要快得多，但既然都是异步接口，就存在一种逻辑上的可能性：网络获取数据先于本地缓存数据发生回调。而且，我们在上一篇文章《[iOS和Android开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调顺序”一节提到的“提前的失败结果回调”和“提前的成功结果回调”，为这种情况的发生提供了更为现实的依据。
+虽然读取本地缓存数据通常来说比从网络获取数据要快得多，但既然都是异步接口，就存在一种逻辑上的可能性：网络获取数据先于本地缓存数据发生回调。而且，我们在上一篇文章《[Android和iOS开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调顺序”一节提到的“提前的失败结果回调”和“提前的成功结果回调”，为这种情况的发生提供了更为现实的依据。
 
 在上面的代码中，如果网络获取数据先于本地缓存数据回调了，那么我们会记录一个布尔型的标记dataFromHttpReady。等到获取本地缓存数据的任务完成时，我们判断这个标记，从而忽略缓存数据。
 
