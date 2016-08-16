@@ -47,7 +47,7 @@ published: true
 
 先看一段代码例子：
 
-{% highlight java linenos %}
+```java
 public interface Downloader {
     /**
      * 设置监听器.
@@ -79,7 +79,7 @@ public interface DownloadListener {
      */
     void downloadProgress(String url, long downloadedSize, long totalSize);
 }
-{% endhighlight %}
+```
 
 这段代码定义了一个下载器接口，用于从指定的URL下载资源。这是一个异步接口，调用者通过调用startDownload启动下载任务，然后等着回调。当downloadFinished回调发生时，表示下载任务结束了。如果返回result=true，则说明下载成功，否则说明下载失败。
 
@@ -91,7 +91,7 @@ public interface DownloadListener {
 
 对于上面下载器接口的代码例子，为了能返回更详尽的错误码，其中DownloadListener的代码修改如下：
 
-{% highlight java linenos %}
+```java
 public interface DownloadListener {
     /**
      * 错误码定义
@@ -130,7 +130,7 @@ public interface DownloadListener {
      */
     void downloadProgress(String url, long downloadedSize, long totalSize);
 }
-{% endhighlight %}
+```
 
 在iOS中，Foundation Framework对于程序错误有一个系统的封装：NSError。它能以非常通用的方式来封装错误码，而且能将错误分成不同的domain。NSError就很适合用在这种失败回调接口的定义中。
 
@@ -140,7 +140,7 @@ public interface DownloadListener {
 
 下面是来自国内某广告平台的视频广告积分墙的接口定义代码（为展示清楚，省略了一些无关的代码）。
 
-{% highlight objc linenos %}
+```objc
 @class IndependentVideoManager;
 
 @protocol IndependentVideoManagerDelegate <NSObject>
@@ -221,7 +221,7 @@ isIndependentVideoAvailable:(BOOL)available;
 - (void)consumeWithPointNumber:(NSUInteger)point;
 
 @end
-{% endhighlight %}
+```
 
 我们来分析一下在这段接口定义中调用接口和回调接口之间的对应关系。
 
@@ -249,7 +249,7 @@ isIndependentVideoAvailable:(BOOL)available;
 
 假设我们前面提到的Downloader接口在最终产生结果回调的时候代码如下：
 
-{% highlight java linenos %}
+```java
     int errorCode = parseDownloadResult(result);
     if (errorCode == SUCCESS) {
         listener.downloadSuccess(url, localPath)
@@ -257,11 +257,11 @@ isIndependentVideoAvailable:(BOOL)available;
     else {
         listener.downloadFailed(url, errorCode, getErrorMessage(errorCode));
     }
-{% endhighlight %}
+```
 
 进而我们发现，为了能够达到“必须产生结果回调”的目标，我们应该考虑parseDownloadResult这个方法抛异常的可能。于是，我们修改代码如下：
 
-{% highlight java linenos %}
+```java
     try {
         int errorCode = parseDownloadResult(result);
         if (errorCode == SUCCESS) {
@@ -274,7 +274,7 @@ isIndependentVideoAvailable:(BOOL)available;
     catch (Exception e) {
         listener.downloadFailed(url, UNKNOWN_FAILED, getErrorMessage(UNKNOWN_FAILED));
     }
-{% endhighlight %}
+```
 
 代码改成这样，已经能保证即使出现了意想不到的情况，也能对调用者产生一个失败回调。
 
@@ -282,7 +282,7 @@ isIndependentVideoAvailable:(BOOL)available;
 
 回调接口的实现是归调用者负责的部分，难道调用者犯的错误也需要我们来考虑？首先，这主要还是应该由上层调用者来负责处理，回调接口的实现方（调用者）实在不应该在异常发生时再把异常抛回来。但是，底层接口的设计者也应当尽力而为。作为接口的设计者，通常不能预期调用者会怎么表现，如果在异常发生时，我们能保证当前错误不至于让整个流程中断和卡死，岂不是更好呢？于是，我们可以尝试把代码改成如下这样：
 
-{% highlight java linenos %}
+```java
     int errorCode;
     try {
         errorCode = parseDownloadResult(result);
@@ -306,7 +306,7 @@ isIndependentVideoAvailable:(BOOL)available;
             e.printStackTrace();
         }
     }
-{% endhighlight %}
+```
 
 回调代码复杂了一些，但也更安全了。
 
@@ -339,7 +339,7 @@ isIndependentVideoAvailable:(BOOL)available;
 
 假设表情包的数据结构定义如下：
 
-{% highlight java linenos %}
+```java
 public class EmojiPackage {
     /**
      * 表情包ID
@@ -350,11 +350,11 @@ public class EmojiPackage {
      */
     public List<String> emojiUrls;
 }
-{% endhighlight %}
+```
 
 在下载过程中，我们需要保存一个如下的上下文结构：
 
-{% highlight java linenos %}
+```java
 public class EmojiDownloadContext {
     /**
      * 当前在下载的表情包
@@ -369,11 +369,11 @@ public class EmojiDownloadContext {
      */
     public List<String> localPathList = new ArrayList<String>();
 }
-{% endhighlight %}
+```
 
 再假设我们要实现的表情包下载器遵守下面的接口定义：
 
-{% highlight java linenos %}
+```java
 public interface EmojiDownloader {
     /**
      * 开始下载指定的表情包
@@ -386,7 +386,7 @@ public interface EmojiDownloader {
      */
     //TODO: 回调接口相关定义
 }
-{% endhighlight %}
+```
 
 如果利用前面已有的Downloader接口来完成表情包下载器的实现，那么根据传递上下文的方式不同，我们可能会产生三种不同的做法：
 
@@ -394,7 +394,7 @@ public interface EmojiDownloader {
 
 注意：这里所说的“全局”，是针对一个表情包下载器内部而言的。代码如下：
 
-{% highlight java linenos %}
+```java
 public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
     /**
      * 全局保存一份的表情包下载上下文.
@@ -462,7 +462,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
         ...
     }
 }
-{% endhighlight %}
+```
 
 这种做法的缺点是：同时只能有一个表情包在下载。必须要等到前一个表情包下载完毕之后才能开始下载新的一个表情包。
 
@@ -472,7 +472,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
 
 在现有Downloader接口的定义下，我们只能用URL来作为这份映射关系的索引。由于一个表情包包含多个URL，因此我们必须为每一个URL都索引一份上下文。代码如下：
 
-{% highlight java linenos %}
+```java
 public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
     /**
      * 保存上下文的映射关系.
@@ -548,7 +548,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
         ...
     }
 }
-{% endhighlight %}
+```
 
 这种做法也有它的缺点：并不能每次都能找到恰当的能唯一索引上下文数据的变量。在这个表情包下载器的例子中，能唯一标识下载的变量本来应该是emojiId，但在Downloader的回调接口中却无法取到这个值，因此只能改用每个URL都建立一份到上下文数据的索引。这样带来的结果就是：如果两个不同表情包包含了某个相同的URL，就可能出现冲突。另外，这种做法的实现比较复杂。
 
@@ -557,7 +557,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
 
 通常来讲，按照我们的设计初衷，我们希望只实例化一个接口实例（即一个Downloader实例），然后用这一个实例来启动多个异步任务。但是，如果我们每次启动新的异步任务都是新创建一个接口实例，那么异步任务就和接口实例个数一一对应了，这样就能将异步任务的上下文数据存到这个接口实例中。代码如下：
 
-{% highlight java linenos %}
+```java
 public class MyEmojiDownloader implements EmojiDownloader {
     @Override
     public void startDownloadEmoji(EmojiPackage emojiPackage) {
@@ -622,7 +622,7 @@ public class MyEmojiDownloader implements EmojiDownloader {
         ...
     }
 }
-{% endhighlight %}
+```
 
 这样做自然缺点也很明显：为每一个下载任务都创建一个下载器实例，这有违我们对于Downloader接口的设计初衷。这会创建大量多余的实例。特别是，当接口实例是个很重的大对象时，这样做会带来大量的开销。
 
@@ -638,7 +638,7 @@ public class MyEmojiDownloader implements EmojiDownloader {
 
 支持了上下文参数的Downloader接口改动如下：
 
-{% highlight java linenos %}
+```java
 public interface Downloader {
     /**
      * 设置回调监听器.
@@ -694,7 +694,7 @@ public interface DownloadListener {
      */
     void downloadProgress(String url, long downloadedSize, long totalSize, Object contextData);
 }
-{% endhighlight %}
+```
 
 利用这个最新的Downloader接口，前面的表情包下载器就有了第4种实现方式。
 
@@ -702,7 +702,7 @@ public interface DownloadListener {
 
 代码如下：
 
-{% highlight java linenos %}
+```java
 public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
     private Downloader downloader;
 
@@ -769,7 +769,7 @@ public class MyEmojiDownloader implements EmojiDownloader, DownloadListener {
         ...
     }
 }
-{% endhighlight %}
+```
 
 显然，最后第4种实现方法更合理一些，代码更紧凑，也没有前面3种的缺点。但是，它要求我们调用的底层异步接口对上下文传递有完善的支持。在实际情况中，我们需要调用的接口大都是既定的，无法修改的。如果我们碰到的接口对上下文参数传递支持得不好，我们就别无选择，只能采取前面3种做法中的一种。总之，我们在这里讨论前3种做法并非自寻烦恼，而是为了应对那些对回调上下文支持不够的接口，而这些接口的设计者通常是无意中给我们出了这样的难题。
 
@@ -785,7 +785,7 @@ UIView每次新的展示都创建一个实例，这本身并不能被视为过�
 
 再来看一下Android上的例子。Android上的回调接口以listener的形式呈现，典型的代码如下：
 
-{% highlight java linenos %}
+```java
 Button button = (Button) findViewById(...);
 button.setOnClickListener(new View.OnClickListener() {
     @Override
@@ -793,7 +793,7 @@ button.setOnClickListener(new View.OnClickListener() {
         ...
     }
 });
-{% endhighlight %}
+```
 
 这段代码中一个Button实例，可以对应多次回调（多次点击事件），但我们不能通过这段代码在这些不同的回调之间进行区分处理。所幸的是，我们实际上也不需要。
 
@@ -825,7 +825,7 @@ button.setOnClickListener(new View.OnClickListener() {
 
 假如之前的DownloadListener简化为只有一个回调方法，如下：
 
-{% highlight java linenos %}
+```java
 public interface DownloadListener {
     /**
      * 错误码定义
@@ -842,11 +842,11 @@ public interface DownloadListener {
      */
     void downloadFinished(int errorCode, String url, String localPath, Object contextData);
 }
-{% endhighlight %}
+```
 
 那么，Downloader接口也能够简化，不再需要一个单独的setListener接口，而是直接在下载接口中接受回调接口。如下：
 
-{% highlight java linenos %}
+```java
 public interface Downloader {
     /**
      * 启动资源的下载.
@@ -857,11 +857,11 @@ public interface Downloader {
      */
     void startDownload(String url, String localPath, Object contextData, DownloadListener listener);
 }
-{% endhighlight %}
+```
 
 这样定义的异步接口，好处是调用起来代码比较简洁，回调接口参数(listener)可以传入闭包的形式。但如果嵌套层数过深的话，就会造成Callback Hell ( <http://callbackhell.com>{:target="_blank"} )。试想利用上述Downloader接口来连续下载三个文件，闭包会有三层嵌套，如下：
 
-{% highlight java linenos %}
+```java
     final Downloader downloader = new MyDownloader();
     downloader.startDownload(url1, localPathForUrl(url1), null, new DownloadListener() {
         @Override
@@ -893,7 +893,7 @@ public interface Downloader {
             }
         }
     });
-{% endhighlight %}
+```
 
 
 对于Callback Hell，这篇文章 <http://callbackhell.com>{:target="_blank"} 给出了一些实用的建议，比如，Keep your code shallow和Modularize。另外，有一些基于Reactive Programming的方案，比如ReactiveX（在Android上RxJava已经应用很广泛），经过适当的封装，对于解决Callback Hell有很好的效果。
