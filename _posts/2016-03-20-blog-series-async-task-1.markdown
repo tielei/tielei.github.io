@@ -92,6 +92,8 @@ public class ServiceBindingDemoActivity extends Activity {
 
 当然，在一般情况下，onPause不会那么快执行，因此onServiceConnected一般都会赶在onPause之前执行。但是，从“逻辑”的角度，我们却不能完全忽视另外一种可能性。实际上它真的有可能发生，比如刚打开页面就立即退到后台，这种可能性便能以极小的概率发生。一旦发生，最后执行的onServiceConnected会建立起Activity与Service的引用和监听关系。这时应用很可能是在后台，而Activity和IBinder却可能仍互相引用着对方。这可能造成Java对象长时间释放不掉，以及其它一些诡异的问题。
 
+这里还有一个细节，最终的表现其实还取决于系统的unbindService的内部实现。当onPause先于onServiceConnected执行的时候，onPause先调用了unbindService。如果unbindService在调用后能够严格保证ServiceConnection的回调不再发生，那么最终就不会造成前面说的Activity和IBinder相互引用的情况出现。但是，unbindService似乎没有这样的对外保证，而且根据个人经验，在Android系统的不同版本中，unbindService在这一点上的行为还不太一样。
+
 像上面的分析一样，我们只要了解了异步任务bindService所能引发的所有可能情况，那就不难想出类似如下的应对措施。
 
 ```java
