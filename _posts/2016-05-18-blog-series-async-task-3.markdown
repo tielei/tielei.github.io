@@ -43,7 +43,7 @@ published: true
 
 首先，我们需要先定义好“Disk Cache”和“网络请求”这两个异步任务的接口。
 
-{% highlight java linenos %}
+```java
 public interface ImageDiskCache {
     /**
      * 异步获取缓存的Bitmap对象.
@@ -59,11 +59,11 @@ public interface ImageDiskCache {
      */
     void putImage(String key, Bitmap bitmap, AsyncCallback<Boolean> callback);
 }
-{% endhighlight %}
+```
 
 ImageDiskCache接口用于存取图片的Disk Cache，其中参数中的AsyncCallback，是一个通用的异步回调接口的定义。其定义代码如下（本文后面还会用到）：
 
-{% highlight java linenos %}
+```java
 /**
  * 一个通用的回调接口定义. 用于返回一个参数.
  * @param <D> 异步接口返回的参数数据类型.
@@ -71,13 +71,13 @@ ImageDiskCache接口用于存取图片的Disk Cache，其中参数中的AsyncCal
 public interface AsyncCallback <D> {
     void onResult(D data);
 }
-{% endhighlight %}
+```
 
 而发起网络请求下载图片文件，我们直接调用上一篇文章《[Android和iOS开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中介绍的Downloader接口（注：采用最后带有contextData参数的那一版本的Dowanloder接口）。
 
 这样，“查找Disk Cache”和“发起网络下载请求”的代码示例如下：
 
-{% highlight java linenos %}
+```java
     //检查二级缓存: disk cache
     imageDiskCache.getImage(url, new AsyncCallback<Bitmap>() {
         @Override
@@ -93,11 +93,11 @@ public interface AsyncCallback <D> {
             }
         }
     });
-{% endhighlight %}
+```
 
 Downloader的成功结果回调的实现代码示例如下：
 
-{% highlight java linenos %}
+```java
     @Override
     public void downloadSuccess(final String url, final String localPath, final Object contextData) {
         //解码图片, 是个耗时操作, 异步来做
@@ -123,7 +123,7 @@ Downloader的成功结果回调的实现代码示例如下：
             }
         });
     }
-{% endhighlight %}
+```
 
 #### 多个异步任务并发执行，全部完成
 
@@ -135,7 +135,7 @@ Downloader的成功结果回调的实现代码示例如下：
 
 首先，还是要先定义好需要的异步接口，即远程API接口的定义。
 
-{% highlight java linenos %}
+```java
 /**
  * Http服务请求接口.
  */
@@ -168,13 +168,13 @@ public interface HttpListener <T, R> {
      */
     void onResult(String apiUrl, T request, HttpResult<R> result, Object contextData);
 }
-{% endhighlight %}
+```
 
 需要注意的是： 在HttpService这个接口定义中，请求参数request使用Generic类型T来定义。如果这个接口有一个实现，那么在实现代码中应该会根据实际传入的request的类型（它可以是任意Java Bean），利用反射机制将其变换成Http请求参数。当然，我们在这里只讨论接口，具体实现不是这里要讨论的重点。
 
 而返回结果参数result，是HttpResult类型，这是为了让它既能表达成功的响应结果，也能表达失败的响应结果。HttpResult的定义代码如下：
 
-{% highlight java linenos %}
+```java
 /**
  * HttpResult封装Http请求的结果.
  *
@@ -228,13 +228,13 @@ public class HttpResult <R> {
         this.response = response;
     }
 }
-{% endhighlight %}
+```
 
 HttpResult也包含一个Generic类型R，它就是请求成功时返回的响应参数类型。同样，在HttpService可能的实现中，应该会再次利用反射机制将请求返回的响应内容（可能是个Json串）变换成类型R（它可以是任意Java Bean）。
 
 好了，现在有了HttpService接口，我们便能演示如何同时发送两个网络请求了。
 
-{% highlight java linenos %}
+```java
 public class MultiRequestsDemoActivity extends AppCompatActivity {
     private HttpService httpService = new MockHttpService();
     /**
@@ -337,7 +337,7 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
         //TODO: 更新UI,展示错误. 省略此处代码
     }
 }
-{% endhighlight %}
+```
 
 为了判断两个异步请求是否“全部完成”了，我们需要在任一个请求回调时都去判断所有请求是否已经返回。这里需要注意的是，之所以我们能采取这样的判断方法，有一个很重要的前提：HttpService的onResult已经调度到主线程执行。我们在上一篇文章《[Android和iOS开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调的线程模型”一节，对回调发生的线程环境已经进行过讨论。在onResult已经调度到主线程执行的前提下，两个请求的onResult回调顺序只能有两种情况：先执行第一个请求的onResult再执行第二个请求的onResult；或者先执行第二个请求的onResult再执行第一个请求的onResult。不管是哪种顺序，上面代码中onResult内部的判断都是有效的。
 
@@ -353,7 +353,7 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
 
 本地缓存也是一个异步任务，接口代码定义如下：
 
-{% highlight java linenos %}
+```java
 public interface LocalDataCache {
     /**
      * 异步获取本地缓存的HttpResponse对象.
@@ -370,13 +370,13 @@ public interface LocalDataCache {
      */
     void putCachingData(String key, HttpResponse data, AsyncCallback<Boolean> callback);
 }
-{% endhighlight %}
+```
 
 这个本地缓存所缓存的数据对象，就是之前从服务器取到的一个HttpResponse对象。异步回调接口AsyncCallback，我们在前面已经讲过。
 
 这样，当页面打开时，我们可以同时启动本地缓存读取任务和远程API请求的任务。其中后者比前者的优先级高。
 
-{% highlight java linenos %}
+```java
 public class PageCachingDemoActivity extends AppCompatActivity {
     private HttpService httpService = new MockHttpService();
     private LocalDataCache localDataCache = new MockLocalDataCache();
@@ -431,7 +431,7 @@ public class PageCachingDemoActivity extends AppCompatActivity {
         //TODO: 更新UI,展示错误. 省略此处代码
     }
 }
-{% endhighlight %}
+```
 
 虽然读取本地缓存数据通常来说比从网络获取数据要快得多，但既然都是异步接口，就存在一种逻辑上的可能性：网络获取数据先于本地缓存数据发生回调。而且，我们在上一篇文章《[Android和iOS开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)》中“回调顺序”一节提到的“提前的失败结果回调”和“提前的成功结果回调”，为这种情况的发生提供了更为现实的依据。
 
@@ -451,7 +451,7 @@ public class PageCachingDemoActivity extends AppCompatActivity {
 
 Observable的merge操作一般使用方式如下：
 
-{% highlight java linenos %}
+```java
     Observable.merge(observable1, observable2)
             .subscribe(new Subscriber<Object>() {
                 @Override
@@ -469,13 +469,13 @@ Observable的merge操作一般使用方式如下：
                     //observable1, observable2任一个出现错误，会执行到这里
                 }
             });
-{% endhighlight %}
+```
 
 根据上面的代码，如果把两个并发的网络请求看成observable1和observable2，那么我们只需要在merge后的onCompleted里等着它们分别执行完就好了。这看起来简化了很多。不过，这里我们首先要解决另一个问题：把HttpService代表的异步网络请求接口封装成Observable。
 
 通常来说，把一个同步任务封装成Observable比较简单，而把一个现成的异步任务封装成Observable就不是那么直观了，我们需要用到AsyncOnSubscribe。
 
-{% highlight java linenos %}
+```java
 public class MultiRequestsDemoActivity extends AppCompatActivity {
     private HttpService httpService = new MockHttpService();
 
@@ -597,7 +597,7 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
     private void processError(Throwable e) {
         //TODO: 更新UI,展示错误. 省略此处代码
     }
-{% endhighlight %}
+```
 
 
 通过引入RxJava，我们简化了异步任务执行结束时的判断逻辑，但把大部分精力花在了“将HttpService封装成Observable”上面了。我们说过，RxJava是一件“重型武器”，它所能完成的事情远远大于这里所需要的。把RxJava用在这里，不免给人“杀鸡用牛刀”的感觉。
