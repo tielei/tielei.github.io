@@ -6,7 +6,7 @@ date: 2016-05-18 23:30:00 +0800
 published: true
 ---
 
-本文是笔者的系列文章《[Android和iOS开发中的异步处理](/posts/blog-series-async-task-1.html)》的第三篇。在本篇文章中，我们主要讨论在执行多个异步任务的时候可能碰到的相关问题。
+本文是系列文章《[Android和iOS开发中的异步处理](/posts/blog-series-async-task-1.html)》的第三篇。在本篇文章中，我们主要讨论在执行多个异步任务的时候可能碰到的相关问题。
 
 通常我们都需要执行多个异步任务，使它们相互协作来完成需求。本文结合典型的应用场景，讲解异步任务的三种协作关系：
 
@@ -23,6 +23,12 @@ published: true
 * 页面缓存
 
 最后，本文还会尝试给出一个使用RxJava这样的框架来实现“并发网络请求”的案例，并进行相关的探讨。
+
+注：本系列文章中出现的代码已经整理到GitHub上（持续更新），代码库地址为：
+
+* <https://github.com/tielei/AsyncProgrammingDemos>{:target="_blank"}
+
+其中，当前这篇文章中出现的Java代码，位于com.zhangtielei.demos.async.programming.multitask这个package中。
 
 ---
 

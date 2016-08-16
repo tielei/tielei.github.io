@@ -1,14 +1,14 @@
 ---
 layout: post
 category: [ios,android]
-title: "Android和iOS开发中的异步处理（一）——概述"
+title: "Android和iOS开发中的异步处理（一）——开篇"
 date: 2016-03-20 19:09:00 +0800
 published: true
 ---
 
 本文是我打算完成的一个系列《Android和iOS开发中的异步处理》的开篇。
 
-从2012年开始开发[微爱](http://welove520.com){:target="_blank"}App的第一个iOS版本计算，我和整个团队接触iOS和Android开发已经差不多有4年时间了。现在回过头来总结，iOS和Android开发与其它领域的开发相比，有什么独特的特征呢？一个合格的iOS或Android开发人员，应该具备哪些技能呢？
+从2012年开始开发[微爱](http://welove520.com){:target="_blank"}App的第一个iOS版本计算，我和整个团队接触iOS和Android开发已经有4年时间了。现在回过头来总结，iOS和Android开发与其它领域的开发相比，有什么独特的特征呢？一个合格的iOS或Android开发人员，应该具备哪些技能呢？
 
 <!--more-->
 
@@ -46,7 +46,13 @@ published: true
 
 * （七）Android Service实例分析——Android Service提供了一个执行异步任务的严密框架 （后面也许会再多提供一些其它的实例分析，加入到这个系列中来）。
 
-显然，本篇blog要讨论的是提纲的第（一）部分。
+显然，本篇文章要讨论的是提纲的第（一）部分。
+
+为了描述清楚，这个系列文章中出现的代码已经整理到GitHub上（持续更新），代码库地址为：
+
+* <https://github.com/tielei/AsyncProgrammingDemos>{:target="_blank"}
+
+其中，当前这篇文章中出现的Java代码，位于com.zhangtielei.demos.async.programming.introduction这个package中；而iOS的代码位于iOSDemos单独的目录中。
 
 下面，我们先从一个具体的小例子开始：Android中的Service Binding。
 

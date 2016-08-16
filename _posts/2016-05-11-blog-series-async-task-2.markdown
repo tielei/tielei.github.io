@@ -6,7 +6,7 @@ date: 2016-05-11 12:00:00 +0800
 published: true
 ---
 
-本文是笔者的系列文章《[Android和iOS开发中的异步处理](/posts/blog-series-async-task-1.html)》的第二篇。在本篇文章中，我们主要讨论跟异步任务的回调有关的诸多问题。
+本文是系列文章《[Android和iOS开发中的异步处理](/posts/blog-series-async-task-1.html)》的第二篇。在本篇文章中，我们主要讨论跟异步任务的回调有关的诸多问题。
 
 在iOS中，回调通常表现为delegate的形式；而在Android中，回调通常以listener的形式存在。但不管表现形式如何，回调都是接口设计不可分割的一部分。回调接口设计的好坏，直接影响整个接口设计的成功与否。
 
@@ -22,6 +22,12 @@ published: true
 * 回调的context参数（透传参数）
 * 回调顺序
 * 闭包形式的回调和Callback Hell
+
+注：本系列文章中出现的代码已经整理到GitHub上（持续更新），代码库地址为：
+
+* <https://github.com/tielei/AsyncProgrammingDemos>{:target="_blank"}
+
+其中，当前这篇文章中出现的Java代码，位于com.zhangtielei.demos.async.programming.callback这个package中。
 
 ---
 
