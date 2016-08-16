@@ -146,7 +146,7 @@ public class ServiceBindingDemoActivity extends Activity {
 
 现在假设我们要维护一个客户端到服务器的TCP长连接。这个连接在网络状态发生变化时能够自动进行重连。首先，我们需要一个能监听网络状态变化的类，这个类叫做Reachability，它的代码如下：
 
-{% highlight objc linenos %}
+```objc
 //
 //  Reachability.h
 //
@@ -246,11 +246,11 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 }
 
 @end
-{% endhighlight %}
+```
 
 上述代码封装了Reachability类的接口。当调用者想开始网络状态监听时，就调用startNetworkMonitoring；监听完毕就调用stopNetworkMonitoring。我们设想中的长连接正好需要创建和调用Reachability对象来处理网络状态变化。它的代码的相关部分可能会如下所示（类名ServerConnection；头文件代码忽略）：
 
-{% highlight objc linenos %}
+```objc
 //
 //  ServerConnection.m
 //
@@ -298,7 +298,7 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
     //此处代码忽略...
 }
 @end
-{% endhighlight %}
+```
 
 长连接ServerConnection在初始化时创建了Reachability实例，并启动监听（调用startNetworkMonitoring），通过系统广播设置监听方法（networkStateChanged:）；当长连接ServerConnection销毁的时候（dealloc）停止监听（调用stopNetworkMonitoring）。
 
@@ -318,43 +318,43 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 
 有人可能会说，dispatch_async执行的block中不应该直接引用self，而应该使用weak-strong dance. 也就是把dispatch_async那段代码改成下面的形式：
 
-{% highlight objc linenos %}
+```objc
         __weak ServerConnection *wself = self;
         dispatch_async(socketQueue, ^{
             __strong ServerConnection *sself = wself;
             [sself reconnect];
         });
-{% endhighlight %}
+```
 
 这样改有没有效果呢？根据我们上面的分析，显然没有。ServerConnection的dealloc仍然在非主线程上执行，上面的问题也依然存在。weak-strong dance被设计用来解决循环引用的问题，但不能解决我们这里碰到的异步任务延迟的问题。
 
 实际上，即使把它改成下面的形式，仍然没有效果。
 
-{% highlight objc linenos %}
+```objc
         __weak ServerConnection *wself = self;
         dispatch_async(socketQueue, ^{
             [wself reconnect];
         });
-{% endhighlight %}
+```
 
 即使拿weak引用（wself）来调用reconnect方法，它一旦执行，也会造成ServerConnection的引用计数增加。结果仍然是dealloc在非主线程上执行。
 
 那既然dealloc在非主线程上执行会造成问题，那我们强制把dealloc里面的代码调度到主线程执行好了，如下：
 
-{% highlight objc linenos %}
+```objc
 - (void)dealloc {
     dispatch_async(dispatch_get_main_queue(), ^{
         [reachability stopNetworkMonitoring];
     });
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
-{% endhighlight %}
+```
 
 显然，在dealloc再调用dispatch_async的这种方法也是行不通的。因为在dealloc执行过之后，ServerConnection实例已经被销毁了，那么当block执行时，reachability就依赖了一个已经被销毁的ServerConnection实例。结果还是崩溃。
 
 那不用dispatch_async好了，改用dispatch_sync好了。仔细修改后的代码如下：
 
-{% highlight objc linenos %}
+```objc
 - (void)dealloc {
     if (![NSThread isMainThread]) {
         dispatch_sync(dispatch_get_main_queue(), ^{
@@ -367,7 +367,7 @@ static void ReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkReach
 
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
-{% endhighlight %}
+```
 
 经过“前后左右”打补丁，我们现在总算得到了一段可以基本能正常执行的代码了。然而，在dealloc里执行dispatch_sync这种可能耗时的“同步”操作，总不免令人胆战心惊。
 
