@@ -617,3 +617,18 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
 本文先后讨论了三种多异步任务的协作关系，最后并不想得到这样一个结论：把多个异步任务的执行都改成“先后接续执行”以简化处理逻辑。取舍仍然在于开发者自己。
 
 而且，一个不容忽视的问题是，在很多情况下，选择权不在我们手里，我们拿到的代码架构也许已经造成了各种各样的异步任务协作关系。我们需要做的，就是在这种情况出现时，能够总是保持头脑的冷静，从纷繁复杂的代码逻辑中识别和认清当前所处的局面到底属于哪一种。
+
+（完）
+
+**其它精选文章**：
+
+* [Android和iOS开发中的异步处理（二）——异步任务的回调](/posts/blog-series-async-task-2.html)
+* [技术的正宗与野路子](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
+* [Android端外推送到底有多烦？](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261350&idx=1&sn=6cea730ef5a144ac243f07019fb43076#rd)
+* [用树型模型管理App数字和红点提示](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261255&idx=1&sn=01ab92edada77803fc4ab7a575453d97&scene=19#wechat_redirect)
+* [一张图读懂RxJava中的线程控制](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=509777575&idx=1&sn=9ace4885f32a1f274e4be8d839700486&scene=19#wechat_redirect)
+* [宇宙尽头的描述符（下）](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261342&idx=1&sn=0adc539ce9b4632aac96a447b7431532#rd)
+* [Redis内部数据结构详解(5)——quicklist](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261335&idx=1&sn=053d72a348be2e78040f3847f4092d92&scene=19#wechat_redirect)
+* [Redis内部数据结构详解(4)——ziplist](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261265&idx=1&sn=e105c4b86a5640c5fc8212cd824f750b#rd)
+* [程序员的宇宙时间线](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261318&idx=1&sn=f7588db0d44a1c1842674d6465ca709e&scene=19#wechat_redirect)
+* [Redis内部数据结构详解(1)——dict](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261203&idx=1&sn=f7ff61ce42e29b874a8026683875bbb1&scene=19#wechat_redirect)

@@ -409,3 +409,17 @@ dealloc最擅长的事，自然还是释放内存，比如调用各个成员变�
 5. 跟系统实现相关的异步行为。这类行为种类繁多，这里举几个例子。比如：安卓中的startActivity是一个异步操作，从调用后到Activity被创建和显示，仍有一小段时间。再如：Activity和Fragment的生命周期是异步的，即使Activity的生命周期已经到了onResume，你还是不知道它所包含的Fragment的生命周期走到哪一步了（以及它的view层次有没有被创建出来）。再比如，在iOS和Android系统上都有监听网络状态变化的机制（本文前面的第二个代码例子中就有涉及），网络状态变化回调何时执行就是一个异步事件。这些异步行为同样需要统一完整的异步处理。
 
 本文在最后还需要澄清一个关于题目的问题。​这个系列虽命名为《Android和iOS开发中的异步处理》，但是对于异步任务的处理这个话题，实际中并不局限于“iOS或Android开发”中，比如在服务器的开发中也是有可能遇到的。在这个系列中我所要表达的，更多的是一个抽象的逻辑，并不局限于iOS或Android某种具体的技术。只是，在iOS和Android的前端开发中，异步任务被应用得如此广泛，以至于我们应该把它当做一个更普遍的问题来对待了。
+
+（完）
+
+**其它精选文章**：
+
+* [技术的正宗与野路子](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
+* [Android端外推送到底有多烦？](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261350&idx=1&sn=6cea730ef5a144ac243f07019fb43076#rd)
+* [用树型模型管理App数字和红点提示](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261255&idx=1&sn=01ab92edada77803fc4ab7a575453d97&scene=19#wechat_redirect)
+* [一张图读懂RxJava中的线程控制](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=509777575&idx=1&sn=9ace4885f32a1f274e4be8d839700486&scene=19#wechat_redirect)
+* [宇宙尽头的描述符（下）](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261342&idx=1&sn=0adc539ce9b4632aac96a447b7431532#rd)
+* [Redis内部数据结构详解(5)——quicklist](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261335&idx=1&sn=053d72a348be2e78040f3847f4092d92&scene=19#wechat_redirect)
+* [Redis内部数据结构详解(4)——ziplist](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261265&idx=1&sn=e105c4b86a5640c5fc8212cd824f750b#rd)
+* [程序员的宇宙时间线](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261318&idx=1&sn=f7588db0d44a1c1842674d6465ca709e&scene=19#wechat_redirect)
+* [Redis内部数据结构详解(1)——dict](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261203&idx=1&sn=f7ff61ce42e29b874a8026683875bbb1&scene=19#wechat_redirect)
