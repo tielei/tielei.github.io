@@ -29,8 +29,119 @@ published: true
 
 ---
 
+记得在开发[微爱](http://welove520.com){:target="_blank"}App的过程中，我们曾经实现过这样一个主题皮肤的功能：
 
+[<img src="/assets/photos_entropy/weiai_theme_screenshot.png" style="width:400px" alt="微爱主题设置功能截图" />](/assets/photos_entropy/weiai_theme_screenshot.png)
 
+按照上面的截图所示，用户可以将软件的显示风格设置成多种主题皮肤中的一个（上面截图中显示了8个可选的主题）。当然，用户同一时刻只能选中一个主题。
+
+我们的一位工程师按照这样的思路对存储结构进行了设计：每个主题用一个对象来表示，这个对象里存储了该主题的相关描述，以及该主题是否被用户选中（作为当前主题）。这些对象的数据最初都是从服务器获得的，都需要在本地进行持久化存储。对象的定义代码如下（伪码）：
+
+```java
+/**
+ * 表示主题皮肤的类定义.
+ */
+public class Theme {
+    //该主题的ID
+    public int themeId;
+    //该主题的名称
+    public String name;
+    //该主题的图片地址
+    public String picture;
+
+    //其它描述字段
+    ......
+
+    //该主题是否被选中
+    public boolean selected;
+}
+
+```
+
+上面截图界面中的主题选中状态的显示逻辑如下（伪码）：
+
+```java
+//参数：
+//保存的各个主题数据，从持久化存储中获得
+Theme[] themes;
+//界面中显示各个主题的View层控件
+View[] themeViews;
+
+......
+
+for (int i = 0; i < themeViews.length; i++) {
+    if (themes[i].selected) {
+        //将第i个主题显示为选中状态
+        displaySelected(themeViews[i]);
+    }
+    else {
+        //将第i个主题显示为未选中状态
+        displayNotSelected(themeViews[i]);
+    }
+}
+```
+
+而用户重新设置主题的时候，选中逻辑如下（伪码）：
+
+```java
+//参数：
+//保存的各个主题数据，从持久化存储中获得
+Theme[] themes;
+//界面中显示各个主题的View层控件
+View[] themeViews;
+//当前用户要选择的新主题的下标
+int toSelect;
+
+......
+
+//修改当前选中的主题数据
+themes[toSelect].selected = true;
+//将当前选中的主题显示为选中状态
+displaySelected(themeViews[toSelect]);
+
+//找到旧的选中主题
+int oldSelected = -1;
+for (int i = 0; i < themes.length; i++) {
+    if (i != toSelect && themes[i].selected) {
+        oldSelected = i; //找到了
+        break;
+    }
+}
+
+if (oldSelected != -1) {
+    //修改旧的选中主题的数据
+    themes[oldSelected].selected = false;
+    //将旧的选中主题显示为非选中状态
+    displayNotSelected(themeViews[oldSelected]);
+}
+
+//最后，将修改后的主题数据持久化下来
+saveToLocalStore(themes);
+```
+
+这几段代码看起来是没有什么逻辑问题的。但是，在用户使用了一段时间之后，有用户给我们发来了类似如下的截图：
+
+[<img src="/assets/photos_entropy/weiai_theme_screenshot_abnormal.png" style="width:400px" alt="微爱主题设置功能异常选中截图" />](/assets/photos_entropy/weiai_theme_screenshot_abnormal.png)
+
+竟然同时选中了两个主题！而我们自己不管怎样测试都重现不了这样的问题，检查代码也没发现哪里有问题。
+
+这到底是怎么回事呢？
+
+经过仔细思考，我们终于发现，按照上面这个实现，系统具有的“熵”比它的理论值要稍微高了一点。因此，它才有机会出现这种乱度较高的状态（两个同时选中）。
+
+什么？一个软件系统也有熵吗？各位莫急，且听我慢慢道来。
+
+热力学第二定律，我们通俗地称它为熵增原理，乃是宇宙中至高无上的普遍规律，在编程世界当然也不例外。
+
+为了从程序员的角度来解释熵增原理的本质，我们仔细分析一下前面提到过的扑克牌洗牌的例子。我第一次看到这个例子，是在一本叫做《悖论：破解科学史上最复杂的9大谜团》的书上看到的。再也没有例子能够如此通俗地表现熵增原理了。
+
+从花色和大小整齐排列的一个初始状态开始随机洗牌，扑克牌将会变得混乱无序；而反过来则不太可能。想象一下，如果我们拿着一副彻底洗过的牌，继续洗牌，然后突然出现了花色和大小按有序排列的情况。我们一定会认为，这是在变魔术！
+
+系统的演变为什么会体现出这种明确的方向性呢？**本质上是系统状态数的区别**。
+
+---
+
+它所体现的系统演变的方向性，正是时间箭头的方向性。
 
 熵增原理，是宇宙中至高无上的物理定律。编程也不例外。
 
