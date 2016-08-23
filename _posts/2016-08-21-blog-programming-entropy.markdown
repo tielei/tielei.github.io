@@ -385,6 +385,68 @@ public void resend(long messageId) {
 
 ---
 
+2016-08-23追加：
+
+昨天有位高人看完文章之后呢，指出了第三个例子的代码有需要改进的地方。确实如此，前面的讨论其实还局限在面向过程的思维，如果按照面向接口的设计思想，这里应该将send接口再抽象一个层次，也就不需要resend接口了。具体思路，我在这里用伪码记录下来，让读者们自己去思考。
+
+首先，我们修改一下send的接口如下（伪码）：
+
+```java
+import java.util.function.Function;
+
+public void send(Message message, Function<Message, Boolean> persistenceAction);
+```
+
+这样修改的目的是将持久化相关的行为抽离出去，用persistenceAction参数代表这一行为。这样，send内部逻辑就统一了（需要处理的状态少了，也算是把熵降下来了）。这里伪码中的Function利用了JDK 8里现成的Functional Interface定义，它其实就是一个方法接口，接受Message，返回一个Boolean。
+
+修改之后的send方法的实现就简单了（伪码）：
+
+```java
+public void send(Message message, Function<Message, Boolean> persistenceAction) {
+    if (persistenceAction.apply(message)) {
+        //在内存中排队或者立即发送请求（带重试）
+        queueingOrRequesting(message);
+        return;
+    }
+
+    //TODO: 出错处理
+}
+```
+
+而当首次发送的时候，调用send接口的代码如下（伪码）：
+
+```java
+    send(message0, message -> {
+        //插入到聊天消息的持久化存储里
+        appendToMessageLocalStore(message);
+        //插入到发送队列的持久化存储里
+        //注：和前一步的持久化操作应该放到同一个DB事务中操作，
+        //这里为了演示方便，省去事务代码
+        appendToMessageSendQueueStore(message);
+
+        return (事务是否成功);
+    });
+```
+
+重发时调用send接口的代码如下（伪码）：
+
+```java
+    send(message0, message -> {
+        //只是修改一下聊天消息的状态就可以了
+        //从失败状态修改成正在发送状态
+        modifyMessageStatusInLocalStore(message.messageId, STATUS_SENDING);
+        //插入到发送队列的持久化存储里
+        //注：和前一步的持久化操作应该放到同一个DB事务中操作，
+        //这里为了演示方便，省去事务代码
+        appendToMessageSendQueueStore(message);
+
+        return (事务是否成功);
+    });
+```
+
+
+---
+
 在熵增原理的统治之下，系统的演变体现出了明确的方向性，它总是向着代表混乱无序的多数状态的方向发展。
 
 我们的编程，以及一切有条理的生命活动，都是在同这一终极原理对抗。
