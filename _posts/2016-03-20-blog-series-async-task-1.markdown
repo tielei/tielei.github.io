@@ -38,7 +38,7 @@ published: true
 
 * （三）[执行多个异步任务](/posts/blog-series-async-task-3.html)​
 
-* （四）异步任务和队列
+* （四）[异步任务和队列](/posts/blog-series-async-task-4.html)​
 
 * （五）异步任务的取消和暂停，以及start ID​——Cancel掉正在执行的异步任务，实际上非常困难。
 
