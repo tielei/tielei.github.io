@@ -149,7 +149,7 @@ Redis的Tutorial是我见过的最好的Tutorial，它对初学者非常友好�
 
 Redis的Spec举例:
 
-* [Redis Protocol specification](http://redis.io/topics/protocol){:target="_blank"} (http://redis.io/topics/protocol)
+* [Redis Protocol Specification](http://redis.io/topics/protocol){:target="_blank"} (http://redis.io/topics/protocol)
 * [Redis Cluster Specification](http://redis.io/topics/cluster-spec){:target="_blank"} (http://redis.io/topics/cluster-spec)
 * [Redis RDB Dump File Format](https://github.com/sripathikrishnan/redis-rdb-tools/wiki/Redis-RDB-Dump-File-Format){:target="_blank"} (https://github.com/sripathikrishnan/redis-rdb-tools/wiki/Redis-RDB-Dump-File-Format)
 
