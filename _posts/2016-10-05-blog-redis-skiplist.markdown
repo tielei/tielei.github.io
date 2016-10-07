@@ -36,10 +36,74 @@ skiplist本质上也是一种查找结构，用于解决算法中的查找问题
 
 我们在《Redis内部数据结构详解》系列的[第一篇](/posts/blog-redis-dict.html)中介绍dict的时候，曾经讨论过：一般查找问题的解法分为两个大类：一个是基于各种平衡树，一个是基于哈希表。但skiplist却比较特殊，它没法归属到这两大类里面。
 
+这种数据结构是由[William Pugh](https://en.wikipedia.org/wiki/William_Pugh){:target="_blank"}发明的，最早出现于他在1990年发表的论文《[Skip Lists: A Probabilistic Alternative to Balanced Trees](ftp://ftp.cs.umd.edu/pub/skipLists/skiplists.pdf){:target="_blank"}》。对细节感兴趣的同学可以下载论文原文来阅读。
+
 skiplist，顾名思义，首先它是一个list。实际上，它是在有序链表的基础上发展起来的。
 
-我们先来看一个有序链表，如下图：
+我们先来看一个有序链表，如下图（最左侧的灰色节点表示一个空的头结点）：
 
+[<img src="/assets/photos_redis/skiplist/sorted_linked_list.png" style="width:600px" alt="有序链表结构图" />](/assets/photos_redis/skiplist/sorted_linked_list.png)
+
+在这样一个链表中，如果我们要查找某个数据，那么需要从头开始逐个进行比较，直到找到包含数据的那个节点，或者找到第一个比给定数据大的节点为止（没找到）。也就是说，时间复杂度为O(n)。同样，当我们要插入新数据的时候，也要经历同样的查找过程，从而确定插入位置。
+
+假如我们在每相邻两个节点中增加一个指针，让指针指向下下个节点，如下图：
+
+[<img src="/assets/photos_redis/skiplist/skip2node_linked_list.png" style="width:600px" alt="每两个节点增加一个跳跃指针的有序链表" />](/assets/photos_redis/skiplist/skip2node_linked_list.png)
+
+这样所有新增加的指针连成了一个新的链表，但它包含的节点个数只有原来的一半（上图中是7, 19, 26）。现在当我们想查找数据的时候，可以先沿着这个新链表进行查找。当碰到比待查数据大的节点时，再回到原来的链表中进行查找。比如，我们想查找23，查找的路径是沿着下图中标红的指针所指向的方向进行的：
+
+[<img src="/assets/photos_redis/skiplist/search_path_on_skip2node_list.png" style="width:600px" alt="一个搜索路径的例子" />](/assets/photos_redis/skiplist/search_path_on_skip2node_list.png)
+
+* 23首先和7比较，再和19比较，比它们都大，继续向后比较。
+* 但23和26比较的时候，比26要小，因此回到下面的链表（原链表），与22比较。
+* 23比22要大，沿下面的指针继续向后和26比较。23比26小，说明待查数据23在原链表中不存在，而且它的插入位置应该在22和26之间。
+
+在这个查找过程中，由于新增加的指针，我们不再需要与链表中每个节点逐个进行比较了。需要比较的节点数大概只有原来的一半。
+
+利用同样的方式，我们可以在上层新产生的链表上，继续为每相邻的两个节点增加一个指针，从而产生第三层链表。如下图：
+
+[<img src="/assets/photos_redis/skiplist/skip2node_level3_linked_list.png" style="width:600px" alt="两层跳跃指针" />](/assets/photos_redis/skiplist/skip2node_level3_linked_list.png)
+
+在这个新的三层链表结构上，如果我们还是查找23，那么沿着最上层链表首先要比较的是19，发现23比19大，接下来我们就知道只需要到19的后面去继续查找，从而一下子跳过了19前面的所有节点。可以想象，当链表足够长的时候，这种多层链表的查找方式能让我们跳过很多下层节点，大大加快查找的速度。
+
+skiplist正是受这种多层链表的想法的启发而设计出来的。实际上，按照上面生成链表的方式，上面每一层链表的节点个数，是下面一层的节点个数的一半，这样查找过程就非常类似于一个二分查找，使得查找的时间复杂度可以降低到O(log<sub>2</sub>n)。但是，这种方法在插入数据的时候有很大的问题。新插入一个节点之后，就会打乱上下相邻两层链表上节点个数严格的2:1的对应关系。如果要维持这种对应关系，就必须把新插入的节点后面的所有节点（也包括新插入的节点）重新进行调整，这会让时间复杂度重新蜕化成O(n)。删除数据也有同样的问题。
+
+skiplist为了避免这一问题，它不要求上下相邻两层链表之间的节点个数有严格的对应关系，而是为每个节点随机出一个层数(level)。比如，一个节点随机出的层数是3，那么就把它链入到第1层到第3层这三层链表中。为了表达清楚，下图展示了如何通过一步步的插入操作从而形成一个skiplist的过程：
+
+[<img src="/assets/photos_redis/skiplist/skiplist_insertions.png" style="width:600px" alt="skiplist插入形成过程" />](/assets/photos_redis/skiplist/skiplist_insertions.png)
+
+从上面skiplist的创建和插入过程可以看出，每一个节点的层数（level）是随机出来的，而且新插入一个节点不会影响其它节点的层数。因此，插入操作只需要修改插入节点前后的指针，而不需要对很多节点都进行调整。这就降低了插入操作的复杂度。实际上，这是skiplist的一个很重要的特性，这让它在插入性能上明显优于平衡树的方案。这在后面我们还会提到。
+
+根据上图中的skiplist结构，我们很容易理解这种数据结构的名字的由来。skiplist，翻译成中文，可以翻译成“跳表”或“跳跃表”，指的就是除了最下面第1层链表之外，它会产生若干层稀疏的链表，这些链表里面的指针故意跳过了一些节点（而且越高层的链表跳过的节点越多）。这就使得我们在查找数据的时候能够先在高层的链表中进行查找，然后逐层降低，最终降到第1层链表来精确地确定数据位置。在这个过程中，我们跳过了一些节点，从而也就加快了查找速度。
+
+刚刚创建的这个skiplist总共包含4层链表，现在假设我们在它里面依然查找23，下图给出了查找路径：
+
+[<img src="/assets/photos_redis/skiplist/search_path_on_skiplist.png" style="width:600px" alt="skiplist上的查找路径展示" />](/assets/photos_redis/skiplist/search_path_on_skiplist.png)
+
+需要注意的是，前面演示的各个节点的插入过程，实际上在插入之前也要先经历一个类似的查找过程，在确定插入位置后，再完成插入操作。
+
+至此，skiplist的查找和插入操作，我们已经很清楚了。而删除操作与插入操作类似，我们也很容易想象出来。这些操作我们也应该能很容易地用代码实现出来。
+
+但是，如果你是第一次接触skiplist，那么一定会产生一个疑问：节点插入时随机出一个层数，仅仅依靠这样一个简单的随机数操作而构建出来的多层链表结构，能保证它有一个良好的查找性能吗？为了回答这个疑问，我们需要分析skiplist的统计性能。
+
+在分析之前，我们还需要着重指出的是，执行插入操作时计算随机数的过程，是一个很关键的过程，它对skiplist的统计特性有着很重要的影响。这并不是一个普通的服从均匀分布的随机数，它的计算过程如下：
+
+* 首先，每个节点肯定都有第1层指针（每个节点都在第1层链表里）。
+* 如果一个节点有第i层(i>=1)指针（即节点已经在第1层到第i层链表中），那么它有第(i+1)层指针的概率为p。
+* 节点最大的层数不允许超过一个最大值，记为MaxLevel。
+
+这个计算随机层数的伪码如下所示：
+
+```java
+randomLevel()
+    lvl := 1
+    // random()返回一个[0...1)的随机数
+    while random() < p and lvl < MaxLevel do
+        lvl := lvl + 1
+    return lvl
+```
+
+### skiplist的算法性能分析
 
 
 （完）
