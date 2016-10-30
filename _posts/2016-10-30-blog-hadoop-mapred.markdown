@@ -48,7 +48,7 @@ published: true
 
 每次看到数据之后，他们都一脸难以置信的表情。*没有统计错误吧？我们就这么点儿用户吗？*
 
-小白无言以对。
+小白竟无言以对。
 
 转眼间一年时间过去了。小白发现，他们与上市目标的距离跟一年前同样遥远。更糟糕的是，公司之前融到的钱已经花得差不多了，而第二轮融资又迟迟没有结果，小白上个月的工资也被拖欠着没发。于是，他果断辞职。
 
@@ -154,13 +154,112 @@ cat access.log.uniq.[1-7] | sort | uniq | wc -l
 * 拆分后的文件要全部拷贝到别的机器上，跨机器的网络传输也很耗时。
 * 最重要的一个问题，这全部的过程相当繁琐，极易出错，且不够通用。
 
-特别是最后这个问题，让小白很是烦恼。
+特别是最后这个问题，让小白很是苦恼。看起来每次统计过程类似，似乎都在重复劳动，但每次又都有些不一样的地方。比如，是根据什么规则进行文件拆分？拆分到多少份？拆分后的数据文件又是怎么处理？哪些机器空闲能够执行这些处理？都要根据具体的统计需求和计算过程来定。
+
+整个过程没法自动化。小白虽然手下招了两个实习生来分担他的工作，但涉及到这种较大数据量的统计问题时，他还是不放心交给他们来做。
+
+于是，小白在思考，如何才能设计出一套通用的数据计算框架，让每个会写脚本的人都能分布式地运行他们的脚本呢？
+
+这一思考就是三年。在这期间，他无数次地感觉到自己已经非常接近于那个问题背后的本质了，但每次都无法达到融会贯通的那个突破点。
+
+而与此同时，公司的业务发展也进入了瓶颈期。小白逐渐认识到，在原有的业务基础上进行精耕细作的微小改进，固然能带来一定程度的提升，但终究无法造就巨大的价值突破。这犹如他正在思考的问题，他需要换一个视野来重新审视。
+
+正在这时，另一家处于高速增长期的互联网公司要挖他过去。再三考虑之后，他选择了一个恰当的时机提交了辞职信，告别了他的第二份工作。
+
+---
+
+小白在新公司入职以后，被分配到数据架构组。他的任务正是他一直想实现的那个目标：设计一套通用的分布式的数据计算框架。这一次，他面临的是动辄几个T的大数据。
+
+小白做了无数次调研，自学了很多知识，最后，他从Lisp以及其它一些函数式语言的map和reduce原语中获得了灵感。他重新设计了整个数据处理过程，如下图：
+
+[<img src="/assets/photos_hadoop/mapred_outline.png" style="width:700px" alt="MapReduce示意图" />](/assets/photos_hadoop/mapred_outline.png)
+
+
+* (1) 输入多个文件。很多数据统计都需要输入多个文件，比如统计周活跃就需要同时输入7个日志文件。
+* (2) 把每个文件进行逻辑分块，分成指定大小的数据块，每个数据块称为InputSplit。
+  * 由于要处理很大的文件，所以首先必须要进行分块，这样接下来才便于数据块的处理和传输。
+  * 而且，这里的文件分块是与业务无关的，这与小白在上家公司根据计算某个哈希值来进行文件拆分是不同的。之前根据哈希值进行的文件拆分，需要编程人员根据具体统计需求来确定如何进行哈希，比如根据什么字段进行哈希，以及哈希成多少份。而现在的文件分块，只用考虑分块大小就可以了。分块过程与业务无关，意味着这个过程可以写进框架，而无需使用者操心了。
+  * 另外，还需要注意的一点是，这里的分块只是逻辑上的，并没有真正地把文件切成很多个小文件，实际上那样做是成本很高的。所谓逻辑上的分块，就是说每个InputSplit只需要指明当前分块是对应哪一个文件、起始字节位置以及分块长度就可以了。
+* (3) 为每一个InputSplit分配一个Mapper任务，它允许调度到不同机器上并行执行。这个Mapper定义了一个高度抽象的map操作，它的输入是一对key-value，而输出则是key-value的列表。这里可能产生的疑问点有下面几个：
+  * 输入的InputSplit每次传多少数据给Mapper呢？这些数据又是怎么变成key-value的格式的呢？实际上，InputSplit的数据确实要经过一定的变换，一部分一部分地变换成key-value的格式传进Mapper。这个转换过程使用者自己可以指定。而对于一般的文本输入文件来说（比如访问日志），数据是一行一行传给Mapper的，其中value=当前行，key=当前行在输入文件中的位置。
+  * Mapper里需要对输入的key-value执行什么处理呢？这其实正是需要使用者来实现的部分。一般来说呢，需要对输入的一行数据进行解析，得到关键的数据。以统计日活跃为例，这里至少应该从输入的一行数据中解析出“用户ID”字段。
+  * Mapper输出的key和value怎么确定呢？这里输出的key很关键。整个系统保证，从Mapper输出的相同的key，不管这些key是从同一个Mapper输出的，还是从不同Mapper输出的，它们后续都会归类到同一个Reducer过程中去处理。比如要统计日活跃，那么这里就希望相同的用户ID最终要送到一个地方去处理（计数），所以输出的key就应该是用户ID。对于输出日活跃的例子，输出的value是什么并不重要。
+* (4) Mapper输出的key-value列表，根据key的值哈希到不同的数据分块中，这里的数据块被称为Partition。后面有多少个Reducer，每个Mapper的输出就对应多少个Partition。最终，一个Mapper的输出，会根据(PartitionId, key)来排序。这样，Mapper输出到同一个Partition中的key-value就是有序的了。这里的过程其实有点类似于小白在前一家公司根据哈希值来进行文件拆分的做法，但那里是对全部数据进行拆分，这里只是对当前InputSplit的部分数据进行划分，数据规模已经减小了。
+* (5) 每个Reducer从各个Mapper收集自己负责的Partition数据，并进行归并排序，然后将每个key和对应的所有value传给Reducer处理。
+  * 由于数据在传给Reducer处理之前进行了排序，所以前面所有Mapper输出的同一个Partition内部相同key的数据都已经挨在了一起，因此可以把这些挨着的数据一次性传给Reducer。如果相同key的数据特别多，那么也没有关系，因为这里传给Reducer的value列表是以Iterator的形式传递的，并不是全部在内存里的列表。
+  * Reducer在处理后再输出自己的key-value，存储到输出文件中。每个Reducer对应一个输出文件。
+
+上面的数据处理过程，一般情况下使用者只需要关心Map(3)和Reduce(5)两个过程，即重写Mapper和Reducer。因此，小白把这个数据处理系统称为MapReduce。
+
+还是以统计日活跃为例，使用者需要重写的Mapper和Reducer代码如下：
+
+```java
+public class MyMapper
+        extends Mapper<Object, Text, Text, Text> {
+    private final static Text empty = new Text("");
+    private Text userId = new Text();
+
+    public void map(Object key, Text value, Context context
+    ) throws IOException, InterruptedException {
+        //value格式: [时间] [用户ID] [操作名称] [其它参数...]
+        StringTokenizer itr = new StringTokenizer(value.toString());
+        //先跳过第一个字段
+        if (itr.hasMoreTokens()) itr.nextToken();
+        if (itr.hasMoreTokens()) {
+            //找到用户ID字段
+            userId.set(itr.nextToken());
+            //输出用户ID
+            context.write(userId, empty);
+        }
+    }
+}
+
+public class MyReducer
+        extends Reducer<Text,Text,Text,Text> {
+    private final static Text empty = new Text("");
+
+    public void reduce(Text key, Iterable<Text> values,
+                       Context context
+    ) throws IOException, InterruptedException {
+        //key就是用户ID
+        //重复的用户ID只输出一个, 去重
+        context.write(key, empty);
+    }
+}
+```
+
+假设配置了`r`个Reducer，那么经过上面的代码执行完毕之后，会得到`r`个输出文件。其中每个文件由不重复的用户ID组成，且不同文件之间不存在交集。因此，这些输出文件就记录了所有日活跃用户，它们的行数累加，就得到了日活跃数。
+
+设计出MapReduce的概念之后，小白发现，这是一个很有效的抽象。它不仅能完成平常的数据统计任务，它还有更广泛的一些用途，下面是几个例子：
+
+* 分布式的Grep操作。
+* 反转网页引用关系。这在搜索引擎中会用到。输入数据是网页source到网页target的引用关系，现在要把这些引用关系倒过来。让Mapper输出(target, source)，在Reducer中把同一个target页面对应的所有source页面归到一起，输出：(target, list(source))。
+* 分布式排序。本来每个Reducer的输出文件是有序的，但不同Reducer的输出文件不是全局有序的。为了能做到全局有序，这里需要在Mapper完成后生成Partition的时候定制一下划分规则，保证Partition之间是有序的即可。
+
+---
+
+*故事之外的说明*：
+
+首先，本文出现的故事情节纯属虚构，但里面出现的技术和思考是真实的。本文在尝试用一个前后贯穿的故事主线来说明数据统计以及MapReduce的设计思路，重点在于思维的前后连贯，而不在于细节的面面俱到。因此，有很多重要的技术细节是本文没有涵盖的，但读者们可能需要注意，比如：
+
+* 本文假设数据都在访问日志中能够取到。实际中要复杂得多，数据有很多来源，格式也会比较复杂。在数据统计之前会有一个很重要的ETL过程（Extract-Transform-Load）。
+* 本文在介绍MapReduce的时候，是仿照Hadoop里的相关实现来进行的，而Hadoop是受谷歌的Jeffrey Dean在2004年发表的一篇论文所启发的。那篇论文叫做《[MapReduce: Simplified Data Processing on Large Clusters](http://research.google.com/archive/mapreduce.html){:target="_blank"}》，下载地址：<http://research.google.com/archive/mapreduce.html>{:target="_blank"}。
+* 本文没有对Hadoop集群的资源管理和任务调度监控系统进行介绍，在Hadoop里这一部分叫做YARN。它非常重要。
+* 为了让Mapper和Reducer在不同的机器上都能对文件进行读写，实际上还需要一个分布式文件系统来支撑。在Hadoop里这部分是HDFS。
+* Hadoop和HDFS的一个重要设计思想是，移动计算本身比移动数据成本更低。因此，Mapper的执行会尽量就近执行。这部分本文没有涉及。
+* 在每个Mapper结束的时候，还可以执行一个Combiner，对数据进行局部的合并，以减小从Mapper到Reducer的数据传输。但是要知道，从Mapper执行，到Combiner执行，再到排序（Sort and Spill），再到Partition的生成，这一部分相当复杂，在实际应用的时候还需深入理解、多加小心。
+* Hadoop官网的文档不是很给力。这里介绍一个介绍Hadoop运行原理的非常不错的网站：<http://ercoppa.github.io/HadoopInternals/>{:target="_blank"}。
 
 （完）
 
 **其它精选文章**：
 
-
-
-
-
+* [Redis内部数据结构详解(6)——skiplist](/posts/blog-redis-skiplist.html)
+* [你需要了解深度学习和神经网络这项技术吗？](/posts/blog-neural-nets.html)
+* [论人生之转折](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261385&idx=1&sn=56b335b4f33546c5baa41a1c7f1b6551#rd)
+* [技术的正宗与野路子](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
+* [程序员的那些反模式](/posts/blog-programmer-anti-pattern.html)
+* [程序员的宇宙时间线](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261318&idx=1&sn=f7588db0d44a1c1842674d6465ca709e#rd)
+* [Android端外推送到底有多烦？](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261350&idx=1&sn=6cea730ef5a144ac243f07019fb43076#rd)
+* [Android和iOS开发中的异步处理（四）——异步任务和队列](/posts/blog-series-async-task-4.html)
+* [用树型模型管理App数字和红点提示](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261255&idx=1&sn=01ab92edada77803fc4ab7a575453d97&scene=19#wechat_redirect)
