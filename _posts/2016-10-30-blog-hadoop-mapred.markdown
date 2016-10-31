@@ -247,9 +247,9 @@ public class MyReducer
 * 本文没有对Hadoop集群的资源管理和任务调度监控系统进行介绍，在Hadoop里这一部分叫做YARN。它非常重要。
 * 为了让Mapper和Reducer在不同的机器上都能对文件进行读写，实际上还需要一个分布式文件系统来支撑。在Hadoop里这部分是HDFS。
 * Hadoop和HDFS的一个重要设计思想是，移动计算本身比移动数据成本更低。因此，Mapper的执行会尽量就近执行。这部分本文没有涉及。
-* 关于输入的InputSplit的边界问题。原始输入文件进行逻辑分块的时候，边界可能在任意的字节位置。但对于文本输入文件来说，Mapper接收到的数据都是整行的数据，这是为什么呢？这是因为对一个InputSplit进行输入处理的时候，对边界经过了特殊处理。具体做法是：在InputSplit结尾的地方越过边界多读一行，而在InputSplit开始的时候跳过第一行数据。
+* 关于输入的InputSplit的边界问题。原始输入文件进行逻辑分块的时候，边界可能在任意的字节位置。但对于文本输入文件来说，Mapper接收到的数据都是整行的数据，这是为什么呢？这是因为对一个InputSplit进行输入处理的时候，在边界附近也经过了特殊处理。具体做法是：在InputSplit结尾的地方越过边界多读一行，而在InputSplit开始的时候跳过第一行数据。
 * 在每个Mapper结束的时候，还可以执行一个Combiner，对数据进行局部的合并，以减小从Mapper到Reducer的数据传输。但是要知道，从Mapper执行，到排序（Sort and Spill），再到Combiner执行，再到Partition的生成，这一部分相当复杂，在实际应用的时候还需深入理解、多加小心。
-* Hadoop官网的文档不是很给力。这里介绍一个介绍Hadoop运行原理的非常不错的网站：<http://ercoppa.github.io/HadoopInternals/>{:target="_blank"}。
+* Hadoop官网的文档不是很给力。这里推荐一个介绍Hadoop运行原理的非常不错的网站：<http://ercoppa.github.io/HadoopInternals/>{:target="_blank"}。
 
 （完）
 
