@@ -16,7 +16,7 @@ published: true
 
 回首过去十年我所从事的这几份工作，正好经历和见证了三个比较大的技术变迁：第一个是smartphone的崛起，第二个是开放平台和Social Game的兴盛，第三个是互联网从Web向手机App的全面迁移。现在，且听我慢慢道来。
 
-### smartphone的崛起和传统手机厂商的衰落
+### Smartphone的崛起和传统手机厂商的衰落
 
 2007年1月，当我从学校毕业进入Motorola工作的时候，公司所在的部门正致力于Linux-Java平台的研发。Linux-Java平台实际上是一个基于Linux内核的手机操作系统，它的底层是经过裁剪的Linux kernel，中间是由C和C++实现的各种支撑框架，而上层应用可以使用Java来实现，跑在JVM里面。
 
