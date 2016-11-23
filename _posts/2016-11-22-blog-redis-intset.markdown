@@ -28,7 +28,7 @@ set-max-intset-entries 512
 
 ### intset数据结构简介
 
-intset顾名思义，是由整数组成的集合。实际上，intset是一个由整数组成的有序集合，从而便于在上面进行二分查找，用于快速地判断一个元素是否属于某个集合。它在内存分配上与[ziplist](/posts/blog-redis-ziplist.html)有些类似，是连续的一整块内存空间，而且对于大整数和小整数采取了不同的编码，尽量对内存的使用进行了优化。
+intset顾名思义，是由整数组成的集合。实际上，intset是一个由整数组成的有序集合，从而便于在上面进行二分查找，用于快速地判断一个元素是否属于这个集合。它在内存分配上与[ziplist](/posts/blog-redis-ziplist.html)有些类似，是连续的一整块内存空间，而且对于大整数和小整数（按绝对值）采取了不同的编码，尽量对内存的使用进行了优化。
 
 intset的数据结构定义如下（出自intset.h和intset.c）：
 
@@ -46,7 +46,7 @@ typedef struct intset {
 
 各个字段含义如下：
 
-* `encoding`: 数据编码，表示intset中的每个数据元素用几个字节来存储。它有三种可能的取值：INTSET_ENC_INT16表示每个元素用2个字节存储，INTSET_ENC_INT32表示每个元素用4个字节存储，INTSET_ENC_INT64表示每个元素用8个字节存储。
+* `encoding`: 数据编码，表示intset中的每个数据元素用几个字节来存储。它有三种可能的取值：INTSET_ENC_INT16表示每个元素用2个字节存储，INTSET_ENC_INT32表示每个元素用4个字节存储，INTSET_ENC_INT64表示每个元素用8个字节存储。因此，intset中存储的整数最多只能占用64bit。
 * `length`: 表示intset中的元素个数。`encoding`和`length`两个字段构成了intset的头部（header）。
 * `contents`: 是一个柔性数组（[flexible array member](https://en.wikipedia.org/wiki/Flexible_array_member){:target="_blank"}），表示intset的header后面紧跟着数据元素。这个数组的总长度（即总字节数）等于`encoding * length`。柔性数组在Redis的很多数据结构的定义中都出现过（例如[sds](/posts/blog-redis-sds.html), [quicklist](/posts/blog-redis-quicklist.html), [skiplist](/posts/blog-redis-skiplist.html)），用于表达一个偏移量。`contents`需要单独为其分配空间，这部分内存不包含在intset结构当中。
 
@@ -179,8 +179,8 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
 * 如果要添加的元素`value`所需的数据编码比当前intset的编码要大，那么则调用`intsetUpgradeAndAdd`将intset的编码进行升级后再插入`value`。
 * 调用`intsetSearch`，如果能查到，则不会重复添加。
 * 如果没查到，则调用`intsetResize`对intset进行内存扩充，使得它能够容纳新添加的元素。因为intset是一块连续空间，因此这个操作会引发内存的`realloc`（参见<http://man.cx/realloc>{:target="_blank"}）。这有可能带来一次数据拷贝。同时调用`intsetMoveTail`将待插入位置后面的元素统一向后移动1个位置，这也涉及到一次数据拷贝。值得注意的是，在`intsetMoveTail`中是调用`memmove`完成这次数据拷贝的。`memmove`保证了在拷贝过程中不会造成数据重叠或覆盖，具体参见<http://man.cx/memmove>{:target="_blank"}。
-* `intsetUpgradeAndAdd`的实现中也会调用`intsetResize`来完成内存扩充。在进行编码升级时，`intsetUpgradeAndAdd`的实现会把原来intset中的每个元素取出来，用新的编码重新写入新的位置。
-* 注意一下`intsetAdd`的返回值，它返回一个新的intset指针。它可能与传入的intset指针`is`相同，也可能不同。调用方必须用这里返回的新的intset，替换之前传进来的旧的intset变量。类似这种接口使用模式，在Redis的实现代码中是很常见的，比如我们之前在介绍[sds](/posts/blog-redis-sds.html)和[ziplist](/posts/blog-redis-ziplist.html)的时候都碰到过类似情况。
+* `intsetUpgradeAndAdd`的实现中也会调用`intsetResize`来完成内存扩充。在进行编码升级时，`intsetUpgradeAndAdd`的实现会把原来intset中的每个元素取出来，再用新的编码重新写入新的位置。
+* 注意一下`intsetAdd`的返回值，它返回一个新的intset指针。它可能与传入的intset指针`is`相同，也可能不同。调用方必须用这里返回的新的intset，替换之前传进来的旧的intset变量。类似这种接口使用模式，在Redis的实现代码中是很常见的，比如我们之前在介绍[sds](/posts/blog-redis-sds.html)和[ziplist](/posts/blog-redis-ziplist.html)的时候都碰到过类似的情况。
 * 显然，这个`intsetAdd`算法总的时间复杂度为O(n)。
 
 ### Redis的set
@@ -205,10 +205,10 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
 
 除了前面提到的由于添加非数字元素造成集合底层由intset转成dict之外，还有两种情况可能造成这种转换：
 
-* 添加了一个数字，但它无法用64bit的有符号数来表达。intset能够表达的最大的整数范围为-2<sup>64</sup>~2<sup>64</sup>-1，因此当添加的数字如果超出这个范围的话，也会导致intset转成dict。
+* 添加了一个数字，但它无法用64bit的有符号数来表达。intset能够表达的最大的整数范围为-2<sup>64</sup>~2<sup>64</sup>-1，因此，如果添加的数字超出了这个范围，这也会导致intset转成dict。
 * 添加的集合元素个数超过了`set-max-intset-entries`配置的值的时候，也会导致intset转成dict（具体的触发条件参见t_set.c中的`setTypeAdd`相关代码）。
 
-对于小集合使用intset来存储，主要的原因是节省内存。特别是当存储的元素个数较少的时候，dict所带来的内存开销要大得多（包含两个哈希表、链表指针以及大量的其它元数据）。所以，当存储大量的小集合且集合元素都是数字的时候，用intset能节省下一笔可观的内存空间。
+对于小集合使用intset来存储，主要的原因是节省内存。特别是当存储的元素个数较少的时候，dict所带来的内存开销要大得多（包含两个哈希表、链表指针以及大量的其它元数据）。所以，当存储大量的小集合而且集合元素都是数字的时候，用intset能节省下一笔可观的内存空间。
 
 实际上，从时间复杂度上比较，intset的平均情况是没有dict性能高的。以查找为例，intset是O(log n)的，而dict可以认为是O(1)的。但是，由于使用intset的时候集合元素个数比较少，所以这个影响不大。
 
@@ -226,7 +226,7 @@ Redis set的并、交、差算法的实现代码，在t_set.c中。其中计算�
 2. 对各个集合按照元素个数由少到多进行排序。这个排序有利于后面计算的时候从最小的集合开始，需要处理的元素个数较少。
 3. 对排序后第一个集合（也就是最小集合）进行遍历，对于它的每一个元素，依次在后面的所有集合中进行查找。只有在所有集合中都能找到的元素，才加入到最后的结果集合中。
 
-需要注意的是，上述第3步在集合中进行查找，对于intset和dict的存储来说时间复杂度分别是O(log n)和O(1)。但由于只有小集合才使用intset，所以可以粗略地认为intset的查找也是常数时间复杂度的。因此，如Redis官网上所说（<http://redis.io/commands/sinter>{:target="_blank"}），`sinter`命令的时间复杂度为：
+需要注意的是，上述第3步在集合中进行查找，对于intset和dict的存储来说时间复杂度分别是O(log n)和O(1)。但由于只有小集合才使用intset，所以可以粗略地认为intset的查找也是常数时间复杂度的。因此，如Redis官方文档上所说（<http://redis.io/commands/sinter>{:target="_blank"}），`sinter`命令的时间复杂度为：
 
 > O(N*M) worst case where N is the cardinality of the smallest set and M is the number of sets.
 
@@ -234,7 +234,7 @@ Redis set的并、交、差算法的实现代码，在t_set.c中。其中计算�
 
 计算并集最简单，只需要遍历所有集合，将每一个元素都添加到最后的结果集合中。向集合中添加元素会自动去重。
 
-由于要遍历所有集合的每个元素，所以官方给出的`sunion`命令的时间复杂度为（<http://redis.io/commands/sunion>{:target="_blank"}）：
+由于要遍历所有集合的每个元素，所以Redis官方文档给出的`sunion`命令的时间复杂度为（<http://redis.io/commands/sunion>{:target="_blank"}）：
 
 > O(N) where N is the total number of elements in all given sets.
 
@@ -263,6 +263,8 @@ Redis set的并、交、差算法的实现代码，在t_set.c中。其中计算�
 * 在一定程度上优先选择第一种算法，因为它涉及到的操作比较少，只用添加，而第二种算法要先添加再删除。
 * 如果选择了第一种算法，那么在执行该算法之前，Redis的实现中对于第二个集合之后的所有集合，按照元素个数由多到少进行了排序。这个排序有利于以更大的概率查找到元素，从而更快地结束查找。
 
+对于`sdiff`的时间复杂度，Redis官方文档（<http://redis.io/commands/sdiff>{:target="_blank"}）只给出了第二种算法的结果，是不准确的。
+
 ---
 
 系列下一篇待续，敬请期待。
@@ -278,9 +280,9 @@ Redis set的并、交、差算法的实现代码，在t_set.c中。其中计算�
 * [Redis内部数据结构详解(3)——robj](/posts/blog-redis-robj.html)
 * [Redis内部数据结构详解(2)——sds](/posts/blog-redis-sds.html)
 * [Redis内部数据结构详解(1)——dict](/posts/blog-redis-dict.html)
+* [小白的数据进阶之路](/posts/blog-hadoop-mapred.html)
+* [互联网风雨十年，我所经历的技术变迁](/posts/blog-mobile-to-ai.html)
 * [你需要了解深度学习和神经网络这项技术吗？](/posts/blog-neural-nets.html)
 * [技术的正宗与野路子](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
-* [互联网风雨十年，我所经历的技术变迁](/posts/blog-mobile-to-ai.html)
 * [论人生之转折](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261385&idx=1&sn=56b335b4f33546c5baa41a1c7f1b6551#rd)
 * [Android端外推送到底有多烦？](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261350&idx=1&sn=6cea730ef5a144ac243f07019fb43076#rd)
-* [Android和iOS开发中的异步处理（四）——异步任务和队列](/posts/blog-series-async-task-4.html)
