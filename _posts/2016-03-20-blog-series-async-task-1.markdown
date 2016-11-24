@@ -36,7 +36,7 @@ published: true
 
 * （二）​[异步任务的回调](/posts/blog-series-async-task-2.html)——讨论跟回调接口有关的一系列话题，比如错误处理、线程模型、透传参数、回调顺序等。
 
-* （三）[执行多个异步任务](/posts/blog-series-async-task-3.html)​
+* （三）[多个异步任务协作](/posts/blog-series-async-task-3.html)​
 
 * （四）[异步任务和队列](/posts/blog-series-async-task-4.html)​
 
