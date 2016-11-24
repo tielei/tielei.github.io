@@ -447,37 +447,15 @@ public class PageCachingDemoActivity extends AppCompatActivity {
 
 当然，如果你决意要采用本节的“并发执行，一方优先”的异步任务协作关系，那么一定要记得考虑到异步任务回调的所有可能的执行顺序。
 
-#### 使用RxJava merge来实现并发网络请求
+#### 使用RxJava zip来实现并发网络请求
 
 到目前为止，为了对付多个异步任务在执行时的各种协作关系，我们没有采用任何工具，可以说是属于“徒手搏斗”的情形。本节接下来就要引入一个“重型武器”——RxJava，看一看它在Android上能否会让异步问题的复杂度有所改观。
 
 我们以前面讲的第二种场景“并发网络请求”为例。
 
-在RxJava中，有一个建立在lift操作之上的merge操作，它可以把多个Observable合并为一个Observable，合并后的Observable要等各个源Observable都结束的时候（发生了onCompleted）才会结束。这正是“并发网络请求”这一场景所需要的特性。
+在RxJava中，有一个建立在lift操作之上的zip操作，它可以把多个Observable的数据合并在一起，成为一个新的Observable。这正是“并发网络请求”这一场景所需要的特性。
 
-Observable的merge操作一般使用方式如下：
-
-```java
-    Observable.merge(observable1, observable2)
-            .subscribe(new Subscriber<Object>() {
-                @Override
-                public void onNext(Object response) {
-                    //在这里接收原来observable1, observable2中的各个数据
-                }
-
-                @Override
-                public void onCompleted() {
-                    //observable1, observable2全部结束后，会执行到这里
-                }
-
-                @Override
-                public void onError(Throwable e) {
-                    //observable1, observable2任一个出现错误，会执行到这里
-                }
-            });
-```
-
-根据上面的代码，如果把两个并发的网络请求看成observable1和observable2，那么我们只需要在merge后的onCompleted里等着它们分别执行完就好了。这看起来简化了很多。不过，这里我们首先要解决另一个问题：把HttpService代表的异步网络请求接口封装成Observable。
+我们可以把两个并发的网络请求看成两个Observable，然后使用zip操作将它们的结果进行合并。这看起来简化了很多。不过，这里我们首先要解决另一个问题：把HttpService代表的异步网络请求接口封装成Observable。
 
 通常来说，把一个同步任务封装成Observable比较简单，而把一个现成的异步任务封装成Observable就不是那么直观了，我们需要用到AsyncOnSubscribe。
 
@@ -568,32 +546,36 @@ public class MultiRequestsDemoActivity extends AppCompatActivity {
             }
         });
 
-        //把两个Observable表示的request用merge连接起来
-        Observable.merge(request1, request2)
-                .subscribe(new Subscriber<Object>() {
-                    private HttpResponse1 response1;
-                    private HttpResponse2 response2;
+        //对于两个Observable表示的request，用zip合并它们的结果
+        Observable.zip(request1, request2, new Func2<HttpResponse1, HttpResponse2, List<Object>>() {
+            @Override
+            public List<Object> call(HttpResponse1 response1, HttpResponse2 response2) {
+                List<Object> responses = new ArrayList<Object>(2);
+                responses.add(response1);
+                responses.add(response2);
+                return responses;
+            }
+        }).subscribe(new Subscriber<List<Object>>() {
+            private HttpResponse1 response1;
+            private HttpResponse2 response2;
 
-                    @Override
-                    public void onNext(Object response) {
-                        if (response instanceof HttpResponse1) {
-                            response1 = (HttpResponse1) response;
-                        }
-                        else if (response instanceof HttpResponse2) {
-                            response2 = (HttpResponse2) response;
-                        }
-                    }
+            @Override
+            public void onNext(List<Object> responses) {
+                response1 = (HttpResponse1) responses.get(0);
+                response2 = (HttpResponse2) responses.get(1);
+            }
 
-                    @Override
-                    public void onCompleted() {
-                        processData(response1, response2);
-                    }
+            @Override
+            public void onCompleted() {
+                processData(response1, response2);
+            }
 
-                    @Override
-                    public void onError(Throwable e) {
-                        processError(e);
-                    }
-                });
+            @Override
+            public void onError(Throwable e) {
+                processError(e);
+            }
+
+        });
     }
 
     private void processData(HttpResponse1 data1, HttpResponse2 data2) {
