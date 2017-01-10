@@ -157,6 +157,10 @@ D<sub>KL</sub>(q\|\|p) = H(q,p) - H(q) = -E<sub>x~q</sub>[log p(x)] + E<sub>x~q<
 
 它表示符合概率分布q(x)的词汇表，如果使用p(x)对应的最优编码，那么比q(x)自身对应的最优编码在平均编码长度上要多出多少。从更抽象的意义上来讲，KL divergence量化了从一个概率分布到另一个概率分布之间的距离。
 
+具体到Bob和Alice的例子中，p(x)和q(x)分别是Bob和Alice的单词使用概率分布，那么，D<sub>KL</sub>(q\|\|p)就表示Alice使用Bob的编码比她使用自己的最优编码平均要多用几个bit。这个具体的值可以计算出来：
+
+D<sub>KL</sub>(q\|\|p) = H(q,p) - H(q) = 2.25bit - 1.75bit = 0.5bit
+
 回到机器学习的场景当中，KL divergence恰好可以用来表示我们定义的模型和样本数据之间的差距。即：
 
 D<sub>KL</sub>(*p*'<sub>data</sub>\|\|*p*<sub>model</sub>) = -E<sub>x~*p*'<sub>data</sub></sub>[log *p*<sub>model</sub>(***y***\|***x***;***θ***)] + E<sub>x~*p*'<sub>data</sub></sub>[log *p*'<sub>data</sub>]
