@@ -258,4 +258,19 @@ published: true
 
 还有一部中篇，属于程序员必看：《真名实姓》。比《神经漫游者》更早的一部赛博朋克作品，堪称经典中的经典。
 
+（完）
+
+**其它精选文章**：
+
+* [【程序员脑洞故事】宇宙尽头的描述符](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261342&idx=1&sn=0adc539ce9b4632aac96a447b7431532#rd)
+* [【科幻】象牙少女](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261428&idx=1&sn=a8278a237111fca5a3f68d599ac68ef5&chksm=84479eadb33017bbdc8f2d5c526b278efd0d7dd8cc22eda8875e9bb7a58df91b83224f02f9f2#rd)
+* [知识的三个层次](/posts/blog-knowledge-hierarchy.html)
+* [你需要了解深度学习和神经网络这项技术吗？](/posts/blog-neural-nets.html)
+* [技术的成长曲线](/posts/blog-growth-curve.html)
+* [互联网风雨十年，我所经历的技术变迁](/posts/blog-mobile-to-ai.html)
+* [技术的正宗与野路子](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
+* [程序员的宇宙时间线](/posts/blog-programmer-choice.html)
+* [论人生之转折](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261385&idx=1&sn=56b335b4f33546c5baa41a1c7f1b6551#rd)
+* [Redis内部数据结构详解(7)——intset](/posts/blog-redis-intset.html)
+* [小白的数据进阶之路](/posts/blog-hadoop-mapred.html)
 
