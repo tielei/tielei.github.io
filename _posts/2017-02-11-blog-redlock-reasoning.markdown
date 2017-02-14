@@ -1,7 +1,7 @@
 ---
 layout: post
 category: "server"
-title: "基于Redis的分布式锁到底安全吗？"
+title: "基于Redis的分布式锁到底安全吗（上）？"
 date: 2017-02-11 12:00:00 +0800
 published: true
 ---
@@ -31,7 +31,7 @@ published: true
 首先，Redis客户端为了**获取锁**，向Redis节点发送如下命令：
 
 ```
-    SET resource_name my_random_value NX PX 30000
+SET resource_name my_random_value NX PX 30000
 ```
 
 上面的命令如果执行成功，则客户端成功获取到了锁，接下来就可以**访问共享资源**了；而如果上面的命令执行失败，则说明获取锁失败。
@@ -217,51 +217,20 @@ Martin对Redlock算法的形容是：
 * Martin对于fencing token的举例中，两个fencing token到达资源服务器的顺序颠倒了（小的fencing token后到了），这时资源服务器检查出了这一问题。如果客户端1和客户端2都发生了GC pause，两个fencing token都延迟了，它们几乎同时达到了资源服务器，但保持了顺序，那么资源服务器是不是就检查不出问题了？这时对于资源的访问是不是就发生冲突了？
 * 分布式锁+fencing的方案是绝对正确的吗？能证明吗？
 
-### antirez的反驳
 
-### Hacker News上的一些讨论
+（未完，故事太长，下半部待续）
 
-### 关于Fencing
-
-Chubby
-
-### 关于记时假设(timing assumption)
-
-asynchronous
-
-### 基于ZooKeeper的分布式锁更安全吗？
-
-Martin也提过。
-
-### Martin的事后总结
-
-
-
----
-
-不是谁说了对，就对
-
-我相信，讨论仍然没有结束。分布式锁(Distributed Locks)和相应的Fencing方案，可以作为一个长期的课题，随着我们对分布式系统的认识逐渐增加，再来慢慢地思考它。思考它更深层的本质，以及它在理论上的证明。
-
-结论并不是那么重要。
-
-（完）
-
-##### 参考文献：
-
-* [1] Ian Goodfellow, Yoshua Bengio, Aaron Courville, "Deep Learning", <http://www.deeplearningbook.org/>{:target="_blank"}
 
 **其它精选文章**：
 
-* [你需要了解深度学习和神经网络这项技术吗？](/posts/blog-neural-nets.html)
+* [Redis内部数据结构详解(7)——intset](/posts/blog-redis-intset.html)
+* [Redis内部数据结构详解(6)——skiplist](/posts/blog-redis-skiplist.html)
+* [Redis内部数据结构详解(5)——quicklist](/posts/blog-redis-quicklist.html)
+* [Redis内部数据结构详解(4)——ziplist](/posts/blog-redis-ziplist.html)
+* [Redis内部数据结构详解(3)——robj](/posts/blog-redis-robj.html)
+* [Redis内部数据结构详解(2)——sds](/posts/blog-redis-sds.html)
+* [Redis内部数据结构详解(1)——dict](/posts/blog-redis-dict.html)
 * [知识的三个层次](/posts/blog-knowledge-hierarchy.html)
 * [技术的成长曲线](/posts/blog-growth-curve.html)
-* [互联网风雨十年，我所经历的技术变迁](/posts/blog-mobile-to-ai.html)
 * [技术的正宗与野路子](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
-* [程序员的宇宙时间线](/posts/blog-programmer-choice.html)
-* [论人生之转折](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261385&idx=1&sn=56b335b4f33546c5baa41a1c7f1b6551#rd)
-* [Redis内部数据结构详解(7)——intset](/posts/blog-redis-intset.html)
-* [小白的数据进阶之路](/posts/blog-hadoop-mapred.html)
-* [程序员的那些反模式](/posts/blog-programmer-anti-pattern.html)
-* [Android端外推送到底有多烦？](http://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261350&idx=1&sn=6cea730ef5a144ac243f07019fb43076#rd)
 
