@@ -160,7 +160,7 @@ antirez反驳说：
 * T2: Client B receives a lock with ID 1
 * T3: Client A receives a lock with ID 2
 
-你看，两个客户端（其实是Web服务器）执行“添加名字”的操作，A本来是排在B前面的，但获得锁的顺序却是B排在A前面。因此，antirez说，锁的ID的大小顺序跟那些操作真正想执行的顺序，是没有什么关系的。关键是能排出一个顺序来，能互斥访问就行了。那么，锁的ID是递增的，还是一个random token，自然就不那么重要了。
+你看，两个客户端（其实是Web服务器）执行“添加名字”的操作，A本来是排在B前面的，但获得锁的顺序却是B排在A前面。因此，antirez说，锁的ID的大小顺序跟那些操作真正想执行的顺序，是没有什么关系的。关键是能排出一个顺序来，能互斥访问就行了。那么，至于锁的ID是递增的，还是一个random token，自然就不那么重要了。
 
 Martin提出的fencing token机制，给人留下了无尽的疑惑。这主要是因为他对于这一机制的描述缺少太多的技术细节。从上面的讨论可以看出，antirez对于这一机制的看法是，它跟一个random token没有什么区别，而且，它需要资源服务器本身提供某种互斥机制，这几乎让分布式锁本身的存在失去了意义。围绕fencing token的问题，还有两点是比较引人注目的，Hacker News上也有人提出了相关的疑问：
 
@@ -238,7 +238,7 @@ ZooKeeper是怎么检测出某个客户端已经崩溃了呢？实际上，每�
 
 * <http://zookeeper.apache.org/doc/r3.4.9/recipes.html#sc_recipes_Locks>{:target="_blank"}
 
-我们重新回到Flavio Junqueira对于fencing token的分析。Flavio Junqueira指出，fencing token机制本质上是要求客户端在每次访问一个共享资源的时候，在执行任何操作之前，先对资源进行某种形式“标记”(mark)操作，这个“标记”能保证持有旧的锁的客户端请求（延迟到达了）无法操作资源。这种标记操作可以是很多形式，fencing token是其中比较典型的一个。
+我们重新回到Flavio Junqueira对于fencing token的分析。Flavio Junqueira指出，fencing token机制本质上是要求客户端在每次访问一个共享资源的时候，在执行任何操作之前，先对资源进行某种形式的“标记”(mark)操作，这个“标记”能保证持有旧的锁的客户端请求（如果延迟到达了）无法操作资源。这种标记操作可以是很多形式，fencing token是其中比较典型的一个。
 
 随后Flavio Junqueira提到用递增的epoch number（相当于Martin的fencing token）来保护共享资源。而对于分布式的资源，为了方便讨论，假设分布式资源是一个小型的多备份的数据存储(a small replicated data store)，执行写操作的时候需要向所有节点上写数据。最简单的做标记的方式，就是在对资源进行任何操作之前，先把epoch number标记到各个资源节点上去。这样，各个节点就保证了旧的（也就是小的）epoch number无法操作数据。
 
@@ -250,7 +250,7 @@ ZooKeeper是怎么检测出某个客户端已经崩溃了呢？实际上，每�
 
 提到分布式锁，就不能不提Google的Chubby。
 
-Chubby是Google内部使用的分布式锁服务，有点类似于ZooKeeper，但也存在很多差异。Chubby对外公开的资源，主要是一篇论文，叫做“The Chubby lock service for loosely-coupled distributed systems”，下载地址如下：
+Chubby是Google内部使用的分布式锁服务，有点类似于ZooKeeper，但也存在很多差异。Chubby对外公开的资料，主要是一篇论文，叫做“The Chubby lock service for loosely-coupled distributed systems”，下载地址如下：
 
 * <https://research.google.com/archive/chubby.html>{:target="_blank"}
 
@@ -262,7 +262,7 @@ Chubby自然也考虑到了延迟造成的锁失效的问题。论文里有一�
 
 > a process holding a lock L may issue a request R, but then fail. Another process may ac- quire L and perform some action before R arrives at its destination. If R later arrives, it may be acted on without the protection of L, and potentially on inconsistent data.
 >
->（译文： 一个进程持有锁L，发起了请求R，但是请求失败了。另一个进程获得了锁L并在请求R到达目的地之前执行了一些动作。如果后来请求R到达了，它就有可能在没有锁L保护的情况下进行操作，带来数据不一致的潜在风险。）
+>（译文： 一个进程持有锁L，发起了请求R，但是请求失败了。另一个进程获得了锁L并在请求R到达目的方之前执行了一些动作。如果后来请求R到达了，它就有可能在没有锁L保护的情况下进行操作，带来数据不一致的潜在风险。）
 
 这跟Martin的分析大同小异。
 
@@ -281,11 +281,18 @@ Chubby给出的用于解决（缓解）这一问题的机制称为sequencer，�
 
 * lock-delay。Chubby允许客户端为持有的锁指定一个lock-delay的时间值（默认是1分钟）。当Chubby发现客户端被动失去联系的时候，并不会立即释放锁，而是会在lock-delay指定的时间内阻止其它客户端获得这个锁。这是为了在把锁分配给新的客户端之前，让之前持有锁的客户端有充分的时间把请求队列排空(draining the queue)，尽量防止出现延迟到达的未处理请求。
 
-可见，为了应对锁失效问题，Chubby提供的三种处理方式：CheckSequencer()检查、与上次最新的sequencer对比、lock-delay，它们对于安全性的保证是从强到弱的。而且，这些处理方式都没有保证提供绝对的正确性(correctness)。但是，Chubby确实提供了单调递增的lock generation number，这就允许资源服务器在需要的时候，利用它提供更强的安全性保障。
+可见，为了应对锁失效问题，Chubby提供的三种处理方式：CheckSequencer()检查、与上次最新的sequencer对比、lock-delay，它们对于安全性的保证是从强到弱的。而且，这些处理方式本身都没有保证提供绝对的正确性(correctness)。但是，Chubby确实提供了单调递增的lock generation number，这就允许资源服务器在需要的时候，利用它提供更强的安全性保障。
 
 ### 关于时钟
 
 在Martin与antirez的这场争论中，冲突最为严重的就是对于系统时钟的假设是不是合理的问题。Martin认为系统时钟难免会发生跳跃（这与分布式算法的异步模型相符），而antirez认为在实际中系统时钟可以保证不发生大的跳跃。
+
+Martin对于这一分歧发表了如下看法（原话）：
+
+> So, fundamentally, this discussion boils down to whether it is reasonable to make timing assumptions for ensuring safety properties. I say no, Salvatore says yes — but that's ok. Engineering discussions rarely have one right answer.
+>
+>（译文：
+> 从根本上来说，这场讨论最后归结到了一个问题上：为了确保安全性而做出的记时假设到底是否合理。我认为不合理，而antirez认为合理 —— 但是这也没关系。工程问题的讨论很少只有一个正确答案。）
 
 那么，在实际系统中，时钟到底是否可信呢？对此，[Julia Evans](http://jvns.ca/about/){:target="_blank"}专门写了一篇文章，“TIL: clock skew exists”，总结了很多跟时钟偏移有关的实际资料，并进行了分析。这篇文章地址：
 
@@ -326,6 +333,9 @@ Martin为我们留下了不少疑问，尤其是他提出的fencing token机制�
 
 （完）
 
+**感谢**：
+
+由衷地感谢几位朋友花了宝贵的时间对本文草稿所做的review：CacheCloud的作者付磊，快手的李伟博，阿里的李波。当然，文中如果还有错漏，由我本人负责^-^。
 
 **其它精选文章**：
 
