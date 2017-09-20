@@ -35,7 +35,16 @@ published: true
 
 接下来，我们先不过早地深入到代码细节，而是先把坐标变换的整个过程做一个概览。
 
-### model/view/projection变换
+### 坐标系和坐标变换
+
+我们前面提到过，坐标变换的目标，简单来说，就是把一个3D空间中的物体最终投射到2D的屏幕上去（严格来说，OpenGL ES支持离屏渲染，所以最终未必是绘制到一个可见的屏幕上，不过在本文中我们忽略这一细节）。当然，对于一个物体的坐标变换，实际中是通过对物体的每一个顶点(vertex)来执行相同的变换得到的。最终每个顶点变换到2D屏幕上，再经过光栅化(rasterization)的过程，整个3D物体就对应到了屏幕的像素上，我们看到的效果就相当于透过一个2D屏幕「看到了」3D空间的物体。
+
+下面的图展示了整个坐标变换的过程：
+
+[<img src="/assets/photos_opengl_trans/coordinate_system_overview.png" style="width:600px" alt="坐标变换概览图" />](/assets/photos_opengl_trans/coordinate_system_overview.png)
+
+
+
 
 （完）
 
