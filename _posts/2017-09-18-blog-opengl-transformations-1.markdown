@@ -54,13 +54,21 @@ published: true
 
 为了更好地理解以上各个步骤，下面我们来看几张图。
 
-[<img src="/assets/photos_opengl_trans/local_space.png" style="width:400px" alt="本地坐标展示图" />](/assets/photos_opengl_trans/local_space.png)
+[<img src="/assets/photos_opengl_trans/local_space.png" style="width:500px" alt="本地坐标展示图" />](/assets/photos_opengl_trans/local_space.png)
 
 上面这张图展示的是本地坐标。3D对象是一个立方体，本地坐标的原点(0, 0, 0)位于立方体的中心。红色、绿色、蓝色的坐标轴分别表示x轴、y轴、z轴。
 
-[<img src="/assets/photos_opengl_trans/world_space.png" style="width:400px" alt="世界坐标展示图" />](/assets/photos_opengl_trans/world_space.png)
+[<img src="/assets/photos_opengl_trans/world_space.png" style="width:500px" alt="世界坐标展示图" />](/assets/photos_opengl_trans/world_space.png)
 
-上面这张图展示的是世界坐标。
+上面这张图展示的是世界坐标。可以这样认为，最初，世界坐标系和立方体的本地坐标系是重合的，但立方体经过了某些缩放、旋转和平移之后，两个坐标系不再重合。图中虚线表示的坐标轴，就是原来的本地坐标系。
+
+[<img src="/assets/photos_opengl_trans/view_space.png" style="width:500px" alt="相机坐标展示图" />](/assets/photos_opengl_trans/view_space.png)
+
+上面这张图展示的是相机坐标。左上实线表示的坐标轴即是相机坐标系，右边虚线表示的坐标轴是世界坐标系。相机坐标系可以看成是相机（或眼睛）看向3D空间中的某一点形成的一个观察视角，以上图为例，相机观察的方向正对着世界坐标系的(0,1,0)这一点。相机坐标系的原点正是相机（或眼睛）所在的位置。这里需要注意的一点细节是，按照OpenGL ES的定义习惯，相机坐标系的z轴方向与观察方向正好相反。也就是说，相机（或眼睛）看向z轴的负方向。
+
+实际上，相机坐标系也可以看成是由世界坐标系经过旋转和平移得到的。这在后面我们还会详细讨论。
+
+
 
 （完）
 
