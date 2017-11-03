@@ -128,7 +128,96 @@ y + T_y \\
 z + T_z
 \end{bmatrix})
 
+上式中的
 
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+T_x \\
+T_y \\
+T_z 
+\end{bmatrix})
+
+就是前面提到的平移向量(translation vector)的值。
+
+在线性代数中，一个变换通常使用矩阵的乘法来表达。况且OpenGL ES使用GPU来进行运算，而GPU对于矩阵乘法有着非常高效的算法。我们也希望这里的平移变换能用矩阵乘法（具体说是左乘）来表达。我们设想一个3x3的矩阵**A**，让它乘上顶点的3维坐标：
+
+![](http://latex.codecogs.com/png.latex?\boldsymbol{A}
+\begin{bmatrix} 
+x \\
+y \\
+z 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+a_{11} & a_{12} & a_{13} \\ 
+a_{21} & a_{22} & a_{23} \\ 
+a_{31} & a_{32} & a_{33} \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+x \\
+y \\
+z 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+a_{11}x + a_{12}y + a_{13}z \\ 
+a_{21}x + a_{22}y + a_{23}z \\ 
+a_{31}x + a_{32}y + a_{33}z \\ 
+\end{bmatrix}
+)
+
+我们发现，无论矩阵**A**的各个元素取什么样的值，我们只能得到x,y,z的线性组合，而怎么样也得不到类似前面向量加法的结果形式（x,y,z分别加上一个常数）。为了解决这个问题，我们将3维的顶点坐标换成4维的齐次坐标。所谓齐次坐标，就是在3维坐标的基础上，加上第4个维度，并把它的值设成1。也就是说，3维坐标
+
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+x \\ 
+y \\
+z
+\end{bmatrix})
+
+变成齐次坐标就是：
+
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+x \\ 
+y \\
+z \\
+1
+\end{bmatrix})
+
+当然，齐次坐标的第4个元素，也可以不是1，不过这种情况我们暂时用不到，等我们讨论到投影变换和perspective division的时候再仔细探讨这种情况。现在我们暂且简单的认为，齐次坐标就是多了第4个维度，并且它是一个固定的1。实际上，在OpenGL ES中，我们总是以4维的齐次坐标来表示顶点坐标。
+
+这样，一个4维的顶点坐标经过左乘一个矩阵，得到的结果也是一个4维的顶点坐标。这个矩阵需要是4X4的。根据矩阵乘法的定义，现在我们很容易拼出一个能表示平移的矩阵来：
+
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+x \\
+y \\
+z \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix} 
+x + T_x \\ 
+y + T_y \\
+z + T_z \\
+1
+\end{bmatrix}
+)
+
+上式中的矩阵：
+
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+)
+
+正是我们要推导的平移矩阵。它是4x4的。我们发现，它左上角一个3x3的单位矩阵，第4列前3个元素恰好是平移向量。
 
 #### 缩放矩阵的推导过程
 
