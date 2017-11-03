@@ -84,14 +84,51 @@ published: true
 
 #### 关于线性代数理论基础的说明
 
-在前面（包括[上一篇](/posts/blog-opengl-transformations-1.html)）我们提到坐标变换的时候，一直在说对顶点进行变换，但是，我们知道，在线性代数中我们研究的概念都是基于向量的，并没有点的概念。当把向量对应到解析几何中的时候，我们才有了点的概念，以及点和向量的关系。
+在前面（包括[上一篇](/posts/blog-opengl-transformations-1.html)）我们提到坐标变换的时候，一直在说对顶点进行变换，但是，我们知道，在线性代数中我们研究的概念都是基于向量的，并没有点的概念。向量的原始概念是一个由*n*个数组成的*n*元数组。当把向量对应到几何空间中的时候，我们才有了点的概念，以及点和向量的关系。
 
 [<img src="/assets/photos_opengl_trans/vector_and_point.png" style="width:300px" alt="向量和点概念图" />](/assets/photos_opengl_trans/vector_and_point.png)
 
-如上图，**OP**和**AQ**都是向量，且由于它们的大小和方向都一样，它们表示相同的向量。向量
+如上图，我们建立了一个直角坐标系，![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}}) 就是一个向量，它表示一个有大小和方向的量。把它表示在坐标系里的时候，起点在原点**O**，终点指向点**P**。这个向量的坐标和点**P**的坐标一样，都可以记为(1,2)。也就是说，，任意一个点和一个由原点指向该点的向量是可以一一对应的，这样我们这里讲的OpenGL ES里对于顶点(vertex)的坐标变换，就可以和线性代数里讲的对于向量的线性变换以及坐标变换的知识，对应起来了。
 
+在直角坐标系中表达的向量还有一个性质，就是向量与起点位置无关，也就是说，一个向量向任意方向平移之后不变。比如，在上图中，![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AQ}}) 是由向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}})  平移之后得到的向量，平移前后它们的大小和方向都一样，所以它们表示相同的向量。所以，平移后的向量![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AQ}}) 仍然以坐标(1,2)来表达。
+
+既然向量平移后坐标不变，那么我们要对顶点进行平移变换，就不能直接通过对一个向量的平移来得到。实际上，我们会用到两个向量加法（下一节我们马上会看到）。
+
+在线性代数中，我们有线性变换的概念，它的理论基础非常丰富和完善，但是我们要讨论的OpenGL ES里的各个变换过程，却不能完全被线性变换所囊括。比如，伸缩和旋转可以用线性变换来表达，但平移不能。我们后面要讨论的view变换和投影变换，也不属于线性变换。实际上，它们属于仿射变换([Affine Transformation](https://en.wikipedia.org/wiki/Affine_transformation){:target="_blank"})的范畴。我们先不过早地进入这些抽象概念的讨论，而是对于每个变换具体地去讨论它们的推导过程。也许到最后，当我们回过头来再看这些抽象概念的时候，会看得更加清楚。
 
 #### 平移矩阵的推导过程
+
+首先，我们先来考虑顶点的平移(translation)。这可以通过向量加法来完成。见下图。
+
+[<img src="/assets/photos_opengl_trans/vector_addition.png" style="width:300px" alt="向量加法展示图" />](/assets/photos_opengl_trans/vector_addition.png)
+
+图中**A**点平移到**B**点，相当于做一个向量加法：
+
+![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OA}} + \boldsymbol{\overrightarrow{AB}} = \boldsymbol{\overrightarrow{OC}})
+
+我们看到，在直角坐标系中，向量加法满足三角形法则。其中向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AB}}) 代表了平移的大小和方向，称为平移向量(translation vector)。为了更清楚地读出这个平移向量的坐标，我们把它平移到原点处，它和向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OA'}}) 相等，能看出它的坐标是(0.5,1)。向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OA}}) 加上这样的一个平移向量，相当于把点**A**沿x轴平移0.5个单位，并沿y轴平移1个单位，这样就平移到了点**B**的位置。
+
+前面图中是2维向量的例子，现在我们扩展到3维，将平移变换用向量坐标来表示，如下：
+
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+x \\ 
+y \\
+z
+\end{bmatrix}
++
+\begin{bmatrix} 
+T_x \\
+T_y \\
+T_z 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+x + T_x \\ 
+y + T_y \\
+z + T_z
+\end{bmatrix})
+
+
 
 #### 缩放矩阵的推导过程
 
