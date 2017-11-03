@@ -86,6 +86,9 @@ published: true
 
 在前面（包括[上一篇](/posts/blog-opengl-transformations-1.html)）我们提到坐标变换的时候，一直在说对顶点进行变换，但是，我们知道，在线性代数中我们研究的概念都是基于向量的，并没有点的概念。当把向量对应到解析几何中的时候，我们才有了点的概念，以及点和向量的关系。
 
+[<img src="/assets/photos_opengl_trans/vector_and_point.png" style="width:300px" alt="向量和点概念图" />](/assets/photos_opengl_trans/vector_and_point.png)
+
+如上图，**OP**和**AQ**都是向量，且由于它们的大小和方向都一样，它们表示相同的向量。向量
 
 
 #### 平移矩阵的推导过程
