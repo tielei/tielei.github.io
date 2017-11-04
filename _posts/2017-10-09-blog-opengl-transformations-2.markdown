@@ -43,9 +43,9 @@ published: true
 	Matrix.scaleM(modelMatrix2, 0, 1.5f, 1.5f, 1.5f);
 ```
 
-这段代码中的`modelMatrix2`就是要计算的model矩阵，它是一个4x4的矩阵，存储在一个长度为16的float数组里(`float[16]`)。为什么不是3x3的矩阵呢？这跟齐次坐标有关，我们后面再说，现在先不管它。我们调用了Android SDK中的`Matrix`工具类的方法对其进行了赋值。`setIdentityM`表示设置一个初始的单位矩阵，而`translateM`, `rotateM`和`scaleM`表示在这个初始的单位矩阵基础上依次对矩阵进行调整，分别执行平移、旋转、伸缩操作。需要注意的是，这里的代码调用顺序虽然是先平移，然后旋转，最后再进行伸缩，但这些操作的含义却需要反过来解释，也就是说先进行了一个伸缩操作，然后进行了旋转，最后才执行了平移操作。这其中的原因仍然与矩阵左乘的含义有关，相关细节我们会在本文最后一部分再详细解释。现在我们暂且记住这些操作的解释顺序，那么上面这段代码的精确含义就是：
+这段代码中的`modelMatrix2`就是要计算的model矩阵，它是一个4x4的矩阵，存储在一个长度为16的float数组里(`float[16]`)。为什么不是3x3的矩阵呢？这跟齐次坐标有关，我们后面再说，现在先不管它。我们调用了Android SDK中的`Matrix`工具类的方法对其进行了赋值。`setIdentityM`表示设置一个初始的单位矩阵，而`translateM`, `rotateM`和`scaleM`表示在这个初始的单位矩阵基础上依次对矩阵进行调整，分别执行平移、旋转、缩放操作。需要注意的是，这里的代码调用顺序虽然是先平移，然后旋转，最后再进行缩放，但这些操作的含义却需要反过来解释，也就是说先进行了一个缩放操作，然后进行了旋转，最后才执行了平移操作。这其中的原因仍然与矩阵左乘的含义有关，相关细节我们会在本文最后一部分再详细解释。现在我们暂且记住这些操作的解释顺序，那么上面这段代码的精确含义就是：
 
-1. **伸缩**：先在x, y, z三个坐标轴上都放大1.5倍；
+1. **缩放**：先在x, y, z三个坐标轴上都放大1.5倍；
 2. **旋转**：再绕着向量[0.0, 1.0, 0.0]<sup>T</sup>(也就是y轴)旋转角度`angle`；
 3. **平移**：沿x轴正向平移0.5个单位，沿y轴正向平移1.0个单位，沿z轴负向平移1.5个单位。
 
@@ -88,13 +88,15 @@ published: true
 
 [<img src="/assets/photos_opengl_trans/vector_and_point.png" style="width:300px" alt="向量和点概念图" />](/assets/photos_opengl_trans/vector_and_point.png)
 
-如上图，我们建立了一个直角坐标系，![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}}) 就是一个向量，它表示一个有大小和方向的量。把它表示在坐标系里的时候，起点在原点**O**，终点指向点**P**。这个向量的坐标和点**P**的坐标一样，都可以记为(1,2)。也就是说，，任意一个点和一个由原点指向该点的向量是可以一一对应的，这样我们这里讲的OpenGL ES里对于顶点(vertex)的坐标变换，就可以和线性代数里讲的对于向量的线性变换以及坐标变换的知识，对应起来了。
+如上图，我们建立了一个直角坐标系，![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}}) 就是一个向量，它表示一个有大小和方向的量。把它表示在坐标系里的时候，起点在原点**O**，终点指向点**P**。这个向量的坐标和点**P**的坐标一样，都可以记为(1,2)。也就是说，任意一个点和一个由原点指向该点的向量是可以一一对应的，这样我们这里讲的OpenGL ES里对于顶点(vertex)的坐标变换，就可以和线性代数里讲的对于向量的线性变换以及坐标变换的知识，对应起来了。
+
+在后面的描述中，为了方便，我们有时候会说对向量进行变换，有时候会说对点(或顶点)进行变换，这两种说法是等价的，因为一个点和一个起点在原点且终点在这个点的向量一一对应。
 
 在直角坐标系中表达的向量还有一个性质，就是向量与起点位置无关，也就是说，一个向量向任意方向平移之后不变。比如，在上图中，![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AQ}}) 是由向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}})  平移之后得到的向量，平移前后它们的大小和方向都一样，所以它们表示相同的向量。所以，平移后的向量![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AQ}}) 仍然以坐标(1,2)来表达。
 
 既然向量平移后坐标不变，那么我们要对顶点进行平移变换，就不能直接通过对一个向量的平移来得到。实际上，我们会用到两个向量加法（下一节我们马上会看到）。
 
-在线性代数中，我们有线性变换的概念，它的理论基础非常丰富和完善，但是我们要讨论的OpenGL ES里的各个变换过程，却不能完全被线性变换所囊括。比如，伸缩和旋转可以用线性变换来表达，但平移不能。我们后面要讨论的view变换和投影变换，也不属于线性变换。实际上，它们属于仿射变换([Affine Transformation](https://en.wikipedia.org/wiki/Affine_transformation){:target="_blank"})的范畴。我们先不过早地进入这些抽象概念的讨论，而是对于每个变换具体地去讨论它们的推导过程。也许到最后，当我们回过头来再看这些抽象概念的时候，会看得更加清楚。
+在线性代数中，我们有线性变换的概念，它的理论基础非常丰富和完善，但是我们要讨论的OpenGL ES里的各个变换过程，却不能完全被线性变换所囊括。比如，缩放和旋转可以用线性变换来表达，但平移不能。我们后面要讨论的view变换和投影变换，也不属于线性变换。实际上，它们属于仿射变换([Affine Transformation](https://en.wikipedia.org/wiki/Affine_transformation){:target="_blank"})的范畴。我们先不过早地进入这些抽象概念的讨论，而是对于每个变换具体地去讨论它们的推导过程。也许到最后，当我们回过头来再看这些抽象概念的时候，会看得更加清楚。
 
 #### 平移矩阵的推导过程
 
@@ -217,9 +219,48 @@ z + T_z \\
 \end{bmatrix}
 )
 
-正是我们要推导的平移矩阵。它是4x4的。我们发现，它左上角一个3x3的单位矩阵，第4列前3个元素恰好是平移向量。
+正是我们要推导的平移矩阵。它是4x4的。我们发现，它左上角是一个3x3的单位矩阵，第4列前3个元素恰好是平移向量。
 
 #### 缩放矩阵的推导过程
+
+[<img src="/assets/photos_opengl_trans/vector_scale.png" style="width:300px" alt="向量缩放展示图" />](/assets/photos_opengl_trans/vector_scale.png)
+
+上图表达了2维向量的缩放过程。向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}}) 在x和y方向上都放大了1.5倍就得到了向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP_1}}) ，坐标从(2,1)变换成了(3,1.5)。这种缩放符合比较符合我们常识中的「放大」或「缩小」，即各个维度上都「放大」或「缩小」相同的倍数。如果在3D空间中的一个对象的各个顶点都「放大」或「缩小」相同的倍数，那么这个3D对象本身就「放大」或「缩小」了相应的倍数。
+
+但是，OpenGL ES里的缩放变换可以表达更一般的情形，也就是各个维度上缩放不同的倍数。还是以上图2维向量为例，向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}}) 在x方向上缩小为原来的0.5倍，在y方向上放大为原来的2倍，就得到了向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP_2}}) ，坐标从(2,1)变换成了(1,2)，这也是一种缩放变换。
+
+从上面的例子可见，缩放变换就是把各个维度的坐标分别「放大」或「缩小」一个倍数。扩展到3D空间，仍然使用4维的齐次坐标，缩放操作用矩阵乘法可以写成：
+
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+S_1 & 0 & 0 & 0 \\ 
+0 & S_2 & 0 & 0 \\ 
+0 & 0 & S_3 & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+x \\
+y \\
+z \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix} 
+S_1x \\ 
+S_2x \\
+S_3x \\
+1
+\end{bmatrix}
+)
+
+上面这个式子意思就是，一个向量的x,y,z坐标经过缩放变换之后，分别变成了原来S<sub>1</sub>,S<sub>2</sub>,S<sub>3</sub>倍。而式子中左乘的这个4x4的矩阵，就是我们要推导的缩放矩阵：
+
+![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
+S_1 & 0 & 0 & 0 \\ 
+0 & S_2 & 0 & 0 \\ 
+0 & 0 & S_3 & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+)
 
 ### Android中缩放和平移的实现
 
