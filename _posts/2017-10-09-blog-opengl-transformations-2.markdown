@@ -73,7 +73,7 @@ published: true
 
 * 观察视角为45.0度。这个值通常被称为field of view，简称fov。它的含义已在下图中标出。
 
-[<img src="/assets/photos_opengl_trans/clip_space_fov.png" style="width:500px" alt="投影变换fov展示图" />](/assets/photos_opengl_trans/clip_space_fov.png)
+[<img src="/assets/photos_opengl_trans/part2/clip_space_fov.png" style="width:500px" alt="投影变换fov展示图" />](/assets/photos_opengl_trans/part2/clip_space_fov.png)
 
 * 第二个参数为宽高比，指的是近平面(N)的宽高比。
 * 第三和第四个参数分别表示近平面(N)和远平面(F)与相机位置的距离。
@@ -86,7 +86,7 @@ published: true
 
 在前面（包括[上一篇](/posts/blog-opengl-transformations-1.html)）我们提到坐标变换的时候，一直在说对顶点进行变换，但是，我们知道，在线性代数中我们研究的概念都是基于向量的，并没有点的概念。向量的原始概念是一个由*n*个数组成的*n*元数组。当把向量对应到几何空间中的时候，我们才有了点的概念，以及点和向量的关系。
 
-[<img src="/assets/photos_opengl_trans/vector_and_point.png" style="width:300px" alt="向量和点概念图" />](/assets/photos_opengl_trans/vector_and_point.png)
+[<img src="/assets/photos_opengl_trans/part2/vector_and_point.png" style="width:300px" alt="向量和点概念图" />](/assets/photos_opengl_trans/part2/vector_and_point.png)
 
 如上图，我们建立了一个直角坐标系，![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}}) 就是一个向量，它表示一个有大小和方向的量。把它表示在坐标系里的时候，起点在原点**O**，终点指向点**P**。这个向量的坐标和点**P**的坐标一样，都可以记为(1,2)。也就是说，任意一个点和一个由原点指向该点的向量是可以一一对应的，这样我们这里讲的OpenGL ES里对于顶点(vertex)的坐标变换，就可以和线性代数里讲的对于向量的线性变换以及坐标变换的知识，对应起来了。
 
@@ -102,7 +102,7 @@ published: true
 
 首先，我们先来考虑顶点的平移(translation)。这可以通过向量加法来完成。见下图。
 
-[<img src="/assets/photos_opengl_trans/vector_addition.png" style="width:300px" alt="向量加法展示图" />](/assets/photos_opengl_trans/vector_addition.png)
+[<img src="/assets/photos_opengl_trans/part2/vector_addition.png" style="width:300px" alt="向量加法展示图" />](/assets/photos_opengl_trans/part2/vector_addition.png)
 
 图中**A**点平移到**B**点，相当于做一个向量加法：
 
@@ -223,7 +223,7 @@ z + T_z \\
 
 #### 缩放矩阵的推导过程
 
-[<img src="/assets/photos_opengl_trans/vector_scale.png" style="width:300px" alt="向量缩放展示图" />](/assets/photos_opengl_trans/vector_scale.png)
+[<img src="/assets/photos_opengl_trans/part2/vector_scale.png" style="width:300px" alt="向量缩放展示图" />](/assets/photos_opengl_trans/part2/vector_scale.png)
 
 上图表达了2维向量的缩放过程。向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}}) 在x和y方向上都放大了1.5倍就得到了向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP_1}}) ，坐标从(2,1)变换成了(3,1.5)。这种缩放符合比较符合我们常识中的「放大」或「缩小」，即各个维度上都「放大」或「缩小」相同的倍数。如果在3D空间中的一个对象的各个顶点都「放大」或「缩小」相同的倍数，那么这个3D对象本身就「放大」或「缩小」了相应的倍数。
 
