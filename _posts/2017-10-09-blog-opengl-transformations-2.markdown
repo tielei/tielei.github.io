@@ -27,7 +27,7 @@ published: true
 首先，vertex shader中跟坐标变换有关的是下面这一行代码：
 
 ```java
-	gl_Position = projection * view * model * vec4(position.xyz, 1);
+gl_Position = projection * view * model * vec4(position.xyz, 1);
 ```
 
 它表示，对一个顶点坐标依次进行model、view、projection三种变换。这三种变换，分别是通过左乘一个矩阵来完成的。在上面这行代码中，看起来三个变换的顺序跟我们期望的相反了，但这正是矩阵左乘造成的结果。
@@ -37,10 +37,10 @@ published: true
 那么这行代码中的model、view、projection这三个矩阵，它们的值是什么呢？我们看一下在Demo程序中它们的值是怎样分别计算。以第2个立方体为例，计算model矩阵的代码如下：
 
 ```java
-	Matrix.setIdentityM(modelMatrix2, 0);
-	Matrix.translateM(modelMatrix2, 0, 0.5f, 1.0f, -1.5f);
-	Matrix.rotateM(modelMatrix2, 0, angle, 0.0f, 1.0f, 0.0f);
-	Matrix.scaleM(modelMatrix2, 0, 1.5f, 1.5f, 1.5f);
+Matrix.setIdentityM(modelMatrix2, 0);
+Matrix.translateM(modelMatrix2, 0, 0.5f, 1.0f, -1.5f);
+Matrix.rotateM(modelMatrix2, 0, angle, 0.0f, 1.0f, 0.0f);
+Matrix.scaleM(modelMatrix2, 0, 1.5f, 1.5f, 1.5f);
 ```
 
 这段代码中的`modelMatrix2`就是要计算的model矩阵，它是一个4x4的矩阵，存储在一个长度为16的float数组里(`float[16]`)。为什么不是3x3的矩阵呢？这跟齐次坐标有关，我们后面再说，现在先不管它。我们调用了Android SDK中的`Matrix`工具类的方法对其进行了赋值。`setIdentityM`表示设置一个初始的单位矩阵，而`translateM`, `rotateM`和`scaleM`表示在这个初始的单位矩阵基础上依次对矩阵进行调整，分别执行平移、旋转、缩放操作。需要注意的是，这里的代码调用顺序虽然是先平移，然后旋转，最后再进行缩放，但这些操作的含义却需要反过来解释，也就是说先进行了一个缩放操作，然后进行了旋转，最后才执行了平移操作。这其中的原因仍然与矩阵左乘的含义有关，相关细节我们会在本文最后一部分再详细解释。现在我们暂且记住这些操作的解释顺序，那么上面这段代码的精确含义就是：
@@ -58,7 +58,7 @@ published: true
 接下来，我们再看一下在Demo程序中view矩阵是怎样计算的。
 
 ```java
-	 Matrix.setLookAtM(viewMatrix, 0, 3.0f, 3.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+Matrix.setLookAtM(viewMatrix, 0, 3.0f, 3.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 ```
 
 这行代码中的`viewMatrix`就是要计算的view矩阵，它也是一个4x4的矩阵。我们仍然是调用了`Matrix`工具类的方法对其进行了赋值。它表达的意思是：我们把眼睛（或者说相机）放在世界坐标系的(3.0, 3.0, 10.0)这个点，然后观察的方向正对着点(0.0, 0.0, 0.0)，即世界坐标系的原点。同时我们还需要指定一个「头朝上」的方向，这在代码里设置的是向量(0.0, 1.0, 0.0)指向「上」的方向。
@@ -66,7 +66,7 @@ published: true
 最后看一下projection矩阵的计算：
 
 ```java
- 	Matrix.perspectiveM(projectionMatrix, 0, 45.0f, width / (float) height, 0.1f, 100.0f);
+Matrix.perspectiveM(projectionMatrix, 0, 45.0f, width / (float) height, 0.1f, 100.0f);
 ```
 
 这行代码中的`projectionMatrix`就是要计算的projection矩阵，它同样也是一个4x4的矩阵。'Matrix.perspectiveM'对这个矩阵进行了赋值，这个调用需要的几个输入参数如下：
@@ -94,7 +94,7 @@ published: true
 
 在直角坐标系中表达的向量还有一个性质，就是向量与起点位置无关，也就是说，一个向量向任意方向平移之后不变。比如，在上图中，![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AQ}}) 是由向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OP}})  平移之后得到的向量，平移前后它们的大小和方向都一样，所以它们表示相同的向量。所以，平移后的向量![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AQ}}) 仍然以坐标(1,2)来表达。
 
-既然向量平移后坐标不变，那么我们要对顶点进行平移变换，就不能直接通过对一个向量的平移来得到。实际上，我们会用到两个向量加法（下一节我们马上会看到）。
+既然向量平移后坐标不变，那么我们要对顶点进行平移变换，就不能直接通过对一个向量的平移来得到。实际上，我们会用到两个向量的加法（下一节我们马上会看到）。
 
 在线性代数中，我们有线性变换的概念，它的理论基础非常丰富和完善，但是我们要讨论的OpenGL ES里的各个变换过程，却不能完全被线性变换所囊括。比如，缩放和旋转可以用线性变换来表达，但平移不能。我们后面要讨论的view变换和投影变换，也不属于线性变换。实际上，它们属于仿射变换([Affine Transformation](https://en.wikipedia.org/wiki/Affine_transformation){:target="_blank"})的范畴。我们先不过早地进入这些抽象概念的讨论，而是对于每个变换具体地去讨论它们的推导过程。也许到最后，当我们回过头来再看这些抽象概念的时候，会看得更加清楚。
 
@@ -140,7 +140,7 @@ T_z
 
 就是前面提到的平移向量(translation vector)的值。
 
-在线性代数中，一个变换通常使用矩阵的乘法来表达。况且OpenGL ES使用GPU来进行运算，而GPU对于矩阵乘法有着非常高效的算法。我们也希望这里的平移变换能用矩阵乘法（具体说是左乘）来表达。我们设想一个3x3的矩阵**A**，让它乘上顶点的3维坐标：
+在线性代数中，一个变换通常使用矩阵的乘法来表达。况且OpenGL ES使用GPU来进行运算，而GPU对于矩阵乘法有着非常高效的算法。我们也希望这里的平移变换能用矩阵乘法（具体说是左乘）来表达。我们设想一个3x3的矩阵***A***，让它乘上顶点的3维坐标：
 
 ![](http://latex.codecogs.com/png.latex?\boldsymbol{A}
 \begin{bmatrix} 
@@ -232,9 +232,9 @@ z + T_z \\
 从上面的例子可见，缩放变换就是把各个维度的坐标分别「放大」或「缩小」一个倍数。扩展到3D空间，仍然使用4维的齐次坐标，缩放操作用矩阵乘法可以写成：
 
 ![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
-S_1 & 0 & 0 & 0 \\ 
-0 & S_2 & 0 & 0 \\ 
-0 & 0 & S_3 & 0 \\ 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
 0 & 0 & 0 & 1 \\ 
 \end{bmatrix}
 \begin{bmatrix} 
@@ -245,41 +245,200 @@ z \\
 \end{bmatrix}
 =
 \begin{bmatrix} 
-S_1x \\ 
-S_2x \\
-S_3x \\
+S_xx \\ 
+S_yy \\
+S_zz \\
 1
 \end{bmatrix}
 )
 
-上面这个式子意思就是，一个向量的x,y,z坐标经过缩放变换之后，分别变成了原来S<sub>1</sub>,S<sub>2</sub>,S<sub>3</sub>倍。而式子中左乘的这个4x4的矩阵，就是我们要推导的缩放矩阵：
+上面这个式子意思就是，一个向量的x,y,z坐标经过缩放变换之后，分别变成了原来S<sub>x</sub>,S<sub>y</sub>,S<sub>z</sub>倍。而式子中左乘的这个4x4的矩阵，就是我们要推导的缩放矩阵：
 
 ![](http://latex.codecogs.com/png.latex?\begin{bmatrix} 
-S_1 & 0 & 0 & 0 \\ 
-0 & S_2 & 0 & 0 \\ 
-0 & 0 & S_3 & 0 \\ 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
 0 & 0 & 0 & 1 \\ 
 \end{bmatrix}
 )
 
 ### Android中缩放和平移的实现
 
+最后我们看一下，在前一节推导得到的平移矩阵和缩放矩阵在Android中怎样计算出来的。在Android中，有一个工具类，名字叫`android.opengl.Matrix`（请注意包名），用来计算常见的变换矩阵。
+
+按说我们前面已经推导出了平移矩阵和缩放矩阵的表达式，它们都表达为4x4的矩阵，而且形式也不复杂，那么如何用代码实现出来似乎也是显而易见的。然而，如果把本文第一节出现的代码与推导得到的矩阵表达式进行仔细对比，就会发现事情还没那么简单。
+
+从理论上讲，顶点的变换过程可以表示为：一个4维的顶点齐次坐标，左乘上一个4x4的变换矩阵，就得到了变换后的顶点齐次坐标。如果一个顶点坐标要进行多个变换，比如，先进行缩放变换，再进行平移变换，那么应该先左乘缩放矩阵，再左乘平移矩阵。但是，我们在第一节中介绍的代码中，是在一个初始的单位矩阵基础上依次对矩阵进行调整，分别产生平移、旋转、缩放矩阵（即分别调用了`Matrix`的`translateM`, `rotateM`, `scaleM`三个工具方法）。这段代码我们再贴一遍，如下：
+
+```java
+Matrix.setIdentityM(modelMatrix2, 0);
+Matrix.translateM(modelMatrix2, 0, 0.5f, 1.0f, -1.5f);
+Matrix.rotateM(modelMatrix2, 0, angle, 0.0f, 1.0f, 0.0f);
+Matrix.scaleM(modelMatrix2, 0, 1.5f, 1.5f, 1.5f);
+```
+
+最终得到的矩阵`modelMatrix2`传到vertex shader中去，相当于在顶点坐标上先左乘缩放矩阵，再左乘旋转矩阵，然后再左乘平移矩阵，跟代码调用的顺序正好相反。这到底是怎么回事呢？
+
+我们先单独观察`Matrix.scaleM`这一步调用，分析一下。这个方法的签名是这样的：
+
+```java
+public static void scaleM(float[] m, int mOffset,
+            float x, float y, float z);
+```
+
+它表达的意思是，输入的`float`数组`m`在偏移`mOffset`处已经存放着一个变换矩阵了，记这个矩阵为***M***。经过`scaleM`这个调用之后，输入的这个变换矩阵在原地进行一定的调整，加入了缩放操作，形成了一个新的变换矩阵，记为**M'**。最终得到的这个新矩阵***M'***左乘到顶点坐标上去，得到的最终效果就是先把顶点坐标的三个维度分别缩放到原来的`x`,`y`,`z`倍，然后再执行原来的变换***M***。注意：这里`x`,`y`,`z`这三个参数，相当于前面推导过程中的S<sub>x</sub>,S<sub>y</sub>,S<sub>z</sub>。
+
+记前面推导出来的缩放矩阵为***S***，即：
+
+![](http://latex.codecogs.com/png.latex?\boldsymbol{S}=
+\begin{bmatrix} 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+)
+
+那么，必然有：
+
+***M'*** = ***M*** ***S***
+
+只有这样，当把***M'***左乘到某顶点坐标上去的时候，才能解释成：先缩放，然后再执行变换***M***。
+
+注意：这个公式表达的意思可以概括为，经过`scaleM`处理，相当于在原来的变换矩阵的基础上**右乘**了一个缩放矩阵。
+
+为了看清楚这一步「右乘」到底做了什么操作，我们设任意的变换矩阵***M***为：
+
+![](http://latex.codecogs.com/png.latex?\boldsymbol{M}=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{44} \\ 
+\end{bmatrix}
+)
+
+右乘上***S***之后，得到：
+
+![](http://latex.codecogs.com/png.latex?\boldsymbol{M'}=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{44} \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+m_{11}S_x & m_{12}S_y & m_{13}S_z & m_{14} \\ 
+m_{21}S_x & m_{22}S_y & m_{23}S_z & m_{24} \\ 
+m_{31}S_x & m_{32}S_y & m_{33}S_z & m_{34} \\ 
+m_{41}S_x & m_{42}S_y & m_{43}S_z & m_{44} \\ 
+\end{bmatrix}
+)
+
+上面这个式子就表达了`scaleM`应该执行的操作：对原变换矩阵***M***的前三列各个元素分别乘以S<sub>x</sub>,S<sub>y</sub>,S<sub>z</sub>；第4列保持不变。
+
+现在我们来看一下`scaleM`的实现代码：
+
+```java
+    public static void scaleM(float[] m, int mOffset,
+            float x, float y, float z) {
+        for (int i=0 ; i<4 ; i++) {
+            int mi = mOffset + i;
+            m[     mi] *= x;
+            m[ 4 + mi] *= y;
+            m[ 8 + mi] *= z;
+        }
+    }
+```
+
+这段代码恰恰就是前面的式子所表达的。这里需要注意的一点是：`android.opengl.Matrix`中的矩阵都是按照列顺序(column-major order)来存放的，所以代码中的`m`矩阵，它的每一列实际存放了矩阵的每一行。具体来说，它的数据存放顺序是这样的：
+
+<pre>
+  m[offset +  0] m[offset +  4] m[offset +  8] m[offset + 12]
+  m[offset +  1] m[offset +  5] m[offset +  9] m[offset + 13]
+  m[offset +  2] m[offset +  6] m[offset + 10] m[offset + 14]
+  m[offset +  3] m[offset +  7] m[offset + 11] m[offset + 15]
+</pre>
+
+这样前面这段`scaleM`的代码实现就容易看懂了。
+
+利用同样的思路，我们也可以推导出`Matrix.translateM`的计算过程。它相当于在任意的变换矩阵***M***上右乘平移矩阵***T***，得到一个新的变换矩阵***M'***。
+
+根据上一节的理论推导，我们知道平移矩阵的值为：
+
+![](http://latex.codecogs.com/png.latex?
+\boldsymbol{T}=
+\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+)
+
+计算***M'***为：
+
+![](http://latex.codecogs.com/png.latex?\boldsymbol{M'}=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{44} \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{11}T_x + m_{12}T_y + m_{13}T_z + m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{21}T_x + m_{22}T_y + m_{23}T_z + m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{31}T_x + m_{32}T_y + m_{33}T_z + m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{41}T_x + m_{42}T_y + m_{43}T_z + m_{44} \\ 
+\end{bmatrix}
+)
+
+这个式子就表达了`translateM`应该执行的操作。可以看出，原变换矩阵`M`的前三列不动，变化的只有第4列。
+
+我们来看一下`translateM`的实现代码，它正是实现了前面这个式子的计算：
+
+```java
+    public static void translateM(
+            float[] m, int mOffset,
+            float x, float y, float z) {
+        for (int i=0 ; i<4 ; i++) {
+            int mi = mOffset + i;
+            m[12 + mi] += m[mi] * x + m[4 + mi] * y + m[8 + mi] * z;
+        }
+    }
+```
+
+由于本文没有深入讨论旋转变换，所以`Matrix.rotateM`这里就不讨论了，我们留在下一篇。
 
 ---
 
-本文已经基本说明了这整个的分析思路，这个系列后面的文章仍然会遵循这一思路。等不及的读者已经可以按照类似的方法开始探索之旅了。
+本文重点讨论了model变换中平移矩阵和缩放矩阵的计算以及代码实现过程，虽然还没有详细介绍顶点坐标变换的其余部分，但已经基本说明了这整个的分析思路。这个系列后面的文章仍然会遵循这一思路，等不及的读者应该已经可以按照类似的方法开始自己的探索之旅了。
 
-
+下一篇我们将讨论坐标变换中一个非常重要的变换——旋转。
 
 （完）
 
 
 **其它精选文章**：
 
+* [OpenGL ES和坐标变换（一）](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261567&idx=1&sn=20d380f258cb2380abb56a1511280a97&chksm=84479e26b3301730e29d19ac12c49f00c13663d59f1c4a69c815254bb9358dd7e4b4dbb3e92d#rd)
 * [做技术的五比一原则](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&amp;mid=2657261555&amp;idx=1&amp;sn=3662a2635ecf6f67185abfd697b1057c&amp;chksm=84479e2ab330173cebe16826942b034daec79ded13ee4c03003d7bef262d4969ef0ffb1a0cfb#rd)
 * [分层的概念——认知的基石](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261549&idx=1&sn=350d445acf339ce19e7aab1ff19d92d0&chksm=84479e34b3301722aea0aaaa6f74656dd3e9509d70bf5719fb3992d744312bdd1484fc0c1852#rd)
 * [知识的三个层次](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261491&idx=1&sn=cff9bcc4d4cc8c5e642309f7ac1dd5b3&chksm=84479e6ab330177c51bbf8178edc0a6f0a1d56bbeb997ab1cf07d5489336aa59748dea1b3bbc#rd)
-* [程序员的武林秘籍](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261552&idx=1&sn=dca554ca23c19394b1e0863bf08b5d49&chksm=84479e29b330173fc24e9c32e20ccd628ddfc6f9c71546dc31f4ebee49fca1c1bc4cc19d31c7#rd)
 * [三个字节的历险](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261541&idx=1&sn=2f1ea200389d82e7340a5b4103968d7f&chksm=84479e3cb330172a6b2285d4199822143ad05ef8e8c878b98d4ee4f857664c3d15f54e0aab50#rd)
 * [技术攻关：从零到精通](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261530&idx=1&sn=6e2e80a0895325861541c2b4266ae374&chksm=84479e03b3301715c53f0eebff06f6eca7d4a4089a635a2628e31480a5ca9e328403992f435b#rd)
 * [那些让人睡不着觉的bug](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261538&idx=1&sn=0e4f6bec50f450528877cb7787fdc322&chksm=84479e3bb330172d988f3f3981c4af06d6898a236ebdb9aca35f3fe15c8b89f25b1981ca9c79#rd)
