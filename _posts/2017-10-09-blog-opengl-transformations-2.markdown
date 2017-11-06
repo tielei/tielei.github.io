@@ -32,9 +32,9 @@ gl_Position = projection * view * model * vec4(position.xyz, 1);
 
 它表示，对一个顶点坐标依次进行model、view、projection三种变换。这三种变换，分别是通过左乘一个矩阵来完成的。在上面这行代码中，看起来三个变换的顺序跟我们期望的相反了，但这正是矩阵左乘造成的结果。
 
-代码中的`vec4(position.xyz, 1)`表示顶点在本地坐标系中的坐标（用一个四维的齐次坐标来表达，我们下面会详细介绍）。它左边乘上model矩阵，就得到了该顶点在世界坐标系中的坐标。[上一篇](/posts/blog-opengl-transformations-1.html)我们已经讲过，这个model变换可能包含了缩放(scaling)、旋转(rotation)、平移(translation)这三种变换。然后，世界坐标系中的坐标再左乘一个view矩阵，就变换到了相机坐标系。最后，再左乘projection矩阵，就完成了投影变换。
+代码中的`vec4(position.xyz, 1)`表示顶点在本地坐标系中的坐标（用一个四维的齐次坐标来表达，我们下面会介绍）。它左边乘上model矩阵，就得到了该顶点在世界坐标系中的坐标。[上一篇](/posts/blog-opengl-transformations-1.html)我们已经讲过，这个model变换可能包含了缩放(scaling)、旋转(rotation)、平移(translation)这三种变换。然后，世界坐标系中的坐标再左乘一个view矩阵，就变换到了相机坐标系。最后，再左乘projection矩阵，就完成了投影变换。
 
-那么这行代码中的model、view、projection这三个矩阵，它们的值是什么呢？我们看一下在Demo程序中它们的值是怎样分别计算。以第2个立方体为例，计算model矩阵的代码如下：
+那么这行代码中的model、view、projection这三个矩阵，它们的值是什么呢？我们看一下在Demo程序中它们的值是怎样分别计算的。以第2个立方体为例，计算model矩阵的代码如下：
 
 ```java
 Matrix.setIdentityM(modelMatrix2, 0);
@@ -69,14 +69,14 @@ Matrix.setLookAtM(viewMatrix, 0, 3.0f, 3.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f
 Matrix.perspectiveM(projectionMatrix, 0, 45.0f, width / (float) height, 0.1f, 100.0f);
 ```
 
-这行代码中的`projectionMatrix`就是要计算的projection矩阵，它同样也是一个4x4的矩阵。'Matrix.perspectiveM'对这个矩阵进行了赋值，这个调用需要的几个输入参数如下：
+这行代码中的`projectionMatrix`就是要计算的projection矩阵，它同样也是一个4x4的矩阵。`Matrix.perspectiveM`对这个矩阵进行了赋值，这个调用需要的几个输入参数如下：
 
 * 观察视角为45.0度。这个值通常被称为field of view，简称fov。它的含义已在下图中标出。
 
 [<img src="/assets/photos_opengl_trans/part2/clip_space_fov.png" style="width:500px" alt="投影变换fov展示图" />](/assets/photos_opengl_trans/part2/clip_space_fov.png)
 
 * 第二个参数为宽高比，指的是近平面(N)的宽高比。
-* 第三和第四个参数分别表示近平面(N)和远平面(F)与相机位置的距离。
+* 第三和第四个参数分别表示近平面(N)和远平面(F)与相机的距离。
 
 现在，与model、view、projection三个矩阵的计算有关的代码我们都看到了，已经粗略知道了整个计算的流程。下一节我们就定量地分析一下其中某些矩阵的计算过程。
 
@@ -106,7 +106,7 @@ Matrix.perspectiveM(projectionMatrix, 0, 45.0f, width / (float) height, 0.1f, 10
 
 图中**A**点平移到**B**点，相当于做一个向量加法：
 
-![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OA}} + \boldsymbol{\overrightarrow{AB}} = \boldsymbol{\overrightarrow{OC}})
+![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OA}} + \boldsymbol{\overrightarrow{AB}} = \boldsymbol{\overrightarrow{OB}})
 
 我们看到，在直角坐标系中，向量加法满足三角形法则。其中向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{AB}}) 代表了平移的大小和方向，称为平移向量(translation vector)。为了更清楚地读出这个平移向量的坐标，我们把它平移到原点处，它和向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OA'}}) 相等，能看出它的坐标是(0.5,1)。向量 ![](http://latex.codecogs.com/png.latex?\boldsymbol{\overrightarrow{OA}}) 加上这样的一个平移向量，相当于把点**A**沿x轴平移0.5个单位，并沿y轴平移1个单位，这样就平移到了点**B**的位置。
 
@@ -184,7 +184,7 @@ z \\
 1
 \end{bmatrix})
 
-当然，齐次坐标的第4个元素，也可以不是1，不过这种情况我们暂时用不到，等我们讨论到投影变换和perspective division的时候再仔细探讨这种情况。现在我们暂且简单的认为，齐次坐标就是多了第4个维度，并且它是一个固定的1。实际上，在OpenGL ES中，我们总是以4维的齐次坐标来表示顶点坐标。
+当然，齐次坐标的第4个元素，也可以不是1，不过这种情况我们暂时用不到，等我们讨论到投影变换和perspective division的时候再仔细探讨这种情况。现在我们暂且简单的认为，齐次坐标就是多了第4个维度，并且它是一个固定的1。实际上，在OpenGL ES中，我们总是以4维的齐次坐标来表示顶点坐标。回想一下前面vertex shader程序中的`vec4(position.xyz, 1)`，就是一个齐次坐标。
 
 这样，一个4维的顶点坐标经过左乘一个矩阵，得到的结果也是一个4维的顶点坐标。这个矩阵需要是4X4的。根据矩阵乘法的定义，现在我们很容易拼出一个能表示平移的矩阵来：
 
