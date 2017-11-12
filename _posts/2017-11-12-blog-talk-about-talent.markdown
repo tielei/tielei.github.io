@@ -1,0 +1,37 @@
+---
+layout: post
+category: "other"
+title: "天赋是个伪命题吗？"
+date: 2017-11-12 00:00:01 +0800
+published: true
+---
+
+女儿绘画班的王老师是一个很有想法的人，尤其是在教育小孩子方面很有自己的一套方法和理论。有一次我和王老师聊到了关于小孩子的天赋的话题，发现我们对于天赋有着类似的看法：天赋其实是个伪命题。所谓「天赋」，只不过是个方便的说法而已。
+
+<!--more-->
+
+那天赋是什么呢？我们可以试着书写这样一个公式来解释它：
+
+> 天赋 = 兴趣 + 坚持 + 正反馈
+
+就是首先由于某种原因，你对某方面的事情产生了兴趣。然后，你投入时间和精力，并一直坚持了下去。在这个过程中，你收到的反馈主要是正向的，比如做出了成绩，或是得到了别人的赞扬，那么你就会继续投入更多的时间和精力在这个上面。最后，你可以对自己说：我做这个事情很擅长，比大多数人都做得要好，看来我在这方面是有些天赋的。
+
+王老师还讲述了她小时候学绘画的经历来佐证这个结论。当她觉得自己画得不够好，产生挫败感的时候，她从妈妈那里得到的总是鼓励。妈妈会对她说，你画得已经很好了，比我画得好多了呢。这个就是正反馈。
+
+有时候，事情就是这样奇妙，父母家人或朋友老师的一句赞扬，就可能影响你的一生。
+
+
+（完）
+
+
+**其它精选文章**：
+
+* [做技术的五比一原则](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&amp;mid=2657261555&amp;idx=1&amp;sn=3662a2635ecf6f67185abfd697b1057c&amp;chksm=84479e2ab330173cebe16826942b034daec79ded13ee4c03003d7bef262d4969ef0ffb1a0cfb#rd)
+* [分层的概念——认知的基石](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261549&idx=1&sn=350d445acf339ce19e7aab1ff19d92d0&chksm=84479e34b3301722aea0aaaa6f74656dd3e9509d70bf5719fb3992d744312bdd1484fc0c1852#rd)
+* [知识的三个层次](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261491&idx=1&sn=cff9bcc4d4cc8c5e642309f7ac1dd5b3&chksm=84479e6ab330177c51bbf8178edc0a6f0a1d56bbeb997ab1cf07d5489336aa59748dea1b3bbc#rd)
+* [程序员的武林秘籍](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261552&idx=1&sn=dca554ca23c19394b1e0863bf08b5d49&chksm=84479e29b330173fc24e9c32e20ccd628ddfc6f9c71546dc31f4ebee49fca1c1bc4cc19d31c7#rd)
+* [三个字节的历险](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261541&idx=1&sn=2f1ea200389d82e7340a5b4103968d7f&chksm=84479e3cb330172a6b2285d4199822143ad05ef8e8c878b98d4ee4f857664c3d15f54e0aab50#rd)
+* [技术的正宗与野路子](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
+* [技术攻关：从零到精通](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261530&idx=1&sn=6e2e80a0895325861541c2b4266ae374&chksm=84479e03b3301715c53f0eebff06f6eca7d4a4089a635a2628e31480a5ca9e328403992f435b#rd)
+* [蓄力十年，做一个成就](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261524&idx=1&sn=f41934e050c964edd71371923c89e7cc&chksm=84479e0db330171b4211c0c31d11f94ed2508a68adc8760b173e448c26ab7b99964d5038c4dd#rd)
+
