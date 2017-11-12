@@ -1,0 +1,303 @@
+% XeLaTeX can use any Mac OS X font. See the setromanfont command below.
+% Input to XeLaTeX is full Unicode, so Unicode characters can be typed directly into the source.
+
+% The next lines tell TeXShop to typeset with xelatex, and to open and save the source with Unicode encoding.
+
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+
+\documentclass[12pt]{article}
+\usepackage{geometry}                % See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                   % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                % Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}
+\usepackage{amssymb}
+
+\usepackage{amsmath}
+\usepackage{setspace}
+
+% amsmath documentation:
+% ftp://ftp.ams.org/pub/tex/doc/amsmath/amsldoc.pdf
+
+% Will Robertson's fontspec.sty can be used to simplify font choices.
+% To experiment, open /Applications/Font Book to examine the fonts provided on Mac OS X,
+% and change "Hoefler Text" to any of these choices.
+
+\usepackage{fontspec,xltxtra,xunicode}
+\defaultfontfeatures{Mapping=tex-text}
+\setromanfont[Mapping=tex-text]{Hoefler Text}
+\setsansfont[Scale=MatchLowercase,Mapping=tex-text]{Gill Sans}
+\setmonofont[Scale=MatchLowercase]{Andale Mono}
+
+\title{OpenGL Transformation Equations}
+\author{Charles Zhang}
+%\date{}                                           % Activate to display a given date or no date
+
+\begin{document}
+\maketitle
+
+% For many users, the previous commands will be enough.
+% If you want to directly input Unicode, add an Input Menu or Keyboard to the menu bar 
+% using the International Panel in System Preferences.
+% Unicode must be typeset using a font containing the appropriate characters.
+% Remove the comment signs below for examples.
+
+% \newfontfamily{\A}{Geeza Pro}
+% \newfontfamily{\H}[Scale=0.9]{Lucida Grande}
+% \newfontfamily{\J}[Scale=0.85]{Osaka}
+
+% Here are some multilingual Unicode fonts: this is Arabic text: {\A السلام عليكم}, this is Hebrew: {\H שלום}, 
+% and here's some Japanese: {\J 今日は}.
+
+$
+\vec a b\quad c\quad\quad d
+$
+
+\vspace{4ex}
+
+$
+\boldsymbol{\overrightarrow{OP_2}}
+$
+
+\vspace{4ex}
+
+$
+\boldsymbol{\overrightarrow{OA}} + \boldsymbol{\overrightarrow{AB}} = \boldsymbol{\overrightarrow{OB}}
+$
+
+\vspace{4ex}
+
+$
+\begin{bmatrix} 
+x \\ 
+y \\
+z
+\end{bmatrix}
++
+\begin{bmatrix} 
+T_x \\
+T_y \\
+T_z 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+x + T_x \\ 
+y + T_y \\
+z + T_z
+\end{bmatrix}
+$
+
+
+\vspace{4ex}
+
+$
+\boldsymbol{A}
+\begin{bmatrix} 
+x \\
+y \\
+z 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+a_{11} & a_{12} & a_{13} \\ 
+a_{21} & a_{22} & a_{23} \\ 
+a_{31} & a_{32} & a_{33} \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+x \\
+y \\
+z 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+a_{11}x + a_{12}y + a_{13}z \\ 
+a_{21}x + a_{22}y + a_{23}z \\ 
+a_{31}x + a_{32}y + a_{33}z \\ 
+\end{bmatrix}
+$
+
+\vspace{4ex}
+
+$
+\begin{bmatrix} 
+x \\ 
+y \\
+z
+\end{bmatrix}
+$
+
+\vspace{4ex}
+
+$
+\begin{bmatrix} 
+x \\ 
+y \\
+z \\
+1
+\end{bmatrix}
+$
+
+
+\vspace{4ex}
+
+$
+\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+x \\
+y \\
+z \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix} 
+x + T_x \\ 
+y + T_y \\
+z + T_z \\
+1
+\end{bmatrix}
+$
+
+
+\vspace{4ex}
+
+$
+\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+$
+
+\vspace{4ex}
+
+$
+\begin{bmatrix} 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+x \\
+y \\
+z \\
+1
+\end{bmatrix}
+=
+\begin{bmatrix} 
+S_xx \\ 
+S_yy \\
+S_zz \\
+1
+\end{bmatrix}
+$
+
+
+\vspace{4ex}
+
+$
+\begin{bmatrix} 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+$
+
+
+\vspace{4ex}
+
+$
+\boldsymbol{S}=
+\begin{bmatrix} 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+$
+
+\vspace{4ex}
+
+$
+\boldsymbol{M}=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{44} \\ 
+\end{bmatrix}
+$
+
+\vspace{4ex}
+
+
+$
+\boldsymbol{M'}=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{44} \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+S_x & 0 & 0 & 0 \\ 
+0 & S_y & 0 & 0 \\ 
+0 & 0 & S_z & 0 \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+=
+\begin{bmatrix} 
+m_{11}S_x & m_{12}S_y & m_{13}S_z & m_{14} \\ 
+m_{21}S_x & m_{22}S_y & m_{23}S_z & m_{24} \\ 
+m_{31}S_x & m_{32}S_y & m_{33}S_z & m_{34} \\ 
+m_{41}S_x & m_{42}S_y & m_{43}S_z & m_{44} \\ 
+\end{bmatrix}
+$
+
+\vspace{4ex}
+
+$
+\boldsymbol{T}=
+\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix}
+$
+
+\vspace{4ex}
+
+$
+\boldsymbol{M'}=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{44} \\ 
+\end{bmatrix}
+\begin{bmatrix} 
+1 & 0 & 0 & T_x \\ 
+0 & 1 & 0 & T_y \\ 
+0 & 0 & 1 & T_z \\ 
+0 & 0 & 0 & 1 \\ 
+\end{bmatrix} \\
+\\
+=
+\begin{bmatrix} 
+m_{11} & m_{12} & m_{13} & m_{11}T_x + m_{12}T_y + m_{13}T_z + m_{14} \\ 
+m_{21} & m_{22} & m_{23} & m_{21}T_x + m_{22}T_y + m_{23}T_z + m_{24} \\ 
+m_{31} & m_{32} & m_{33} & m_{31}T_x + m_{32}T_y + m_{33}T_z + m_{34} \\ 
+m_{41} & m_{42} & m_{43} & m_{41}T_x + m_{42}T_y + m_{43}T_z + m_{44} \\ 
+\end{bmatrix}
+$
+
+\end{document}  

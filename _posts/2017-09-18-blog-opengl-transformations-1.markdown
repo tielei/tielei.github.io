@@ -41,7 +41,7 @@ published: true
 
 下面的图展示了整个坐标变换的过程：
 
-[<img src="/assets/photos_opengl_trans/coordinate_system_overview.png" style="width:600px" alt="坐标变换概览图" />](/assets/photos_opengl_trans/coordinate_system_overview.png)
+[<img src="/assets/photos_opengl_trans/part1/coordinate_system_overview.png" style="width:600px" alt="坐标变换概览图" />](/assets/photos_opengl_trans/part1/coordinate_system_overview.png)
 
 我们先来简略地了解一下图中各个过程：
 
@@ -54,15 +54,15 @@ published: true
 
 为了更好地理解以上各个步骤，下面我们来看几张图。
 
-[<img src="/assets/photos_opengl_trans/local_space.png" style="width:500px" alt="本地坐标展示图" />](/assets/photos_opengl_trans/local_space.png)
+[<img src="/assets/photos_opengl_trans/part1/local_space.png" style="width:500px" alt="本地坐标展示图" />](/assets/photos_opengl_trans/part1/local_space.png)
 
 上面这张图展示的是本地坐标。3D对象是一个立方体，本地坐标的原点(0, 0, 0)位于立方体的中心。红色、绿色、蓝色的坐标轴分别表示x轴、y轴、z轴。
 
-[<img src="/assets/photos_opengl_trans/world_space_v2.png" style="width:500px" alt="世界坐标展示图" />](/assets/photos_opengl_trans/world_space_v2.png)
+[<img src="/assets/photos_opengl_trans/part1/world_space_v2.png" style="width:500px" alt="世界坐标展示图" />](/assets/photos_opengl_trans/part1/world_space_v2.png)
 
 上面这张图展示的是世界坐标。可以这样认为，最初，世界坐标系和立方体的本地坐标系是重合的，但立方体经过了某些缩放、旋转和平移之后，两个坐标系不再重合。图中虚线表示的坐标轴，就是原来的本地坐标系。
 
-[<img src="/assets/photos_opengl_trans/view_space_v2.png" style="width:500px" alt="相机坐标展示图" />](/assets/photos_opengl_trans/view_space_v2.png)
+[<img src="/assets/photos_opengl_trans/part1/view_space_v2.png" style="width:500px" alt="相机坐标展示图" />](/assets/photos_opengl_trans/part1/view_space_v2.png)
 
 上面这张图展示的是相机坐标。左下实线表示的坐标轴即是相机坐标系，右边虚线表示的坐标轴是世界坐标系。相机坐标系可以看成是相机（或眼睛）看向3D空间中的某一点形成的一个观察视角，以上图为例，相机观察的方向正对着世界坐标系的(0,2,0)这一点。相机坐标系的原点正是相机（或眼睛）所在的位置。这里需要注意的一点细节是，按照OpenGL ES的定义习惯，相机坐标系的z轴方向与观察方向正好相反。也就是说，相机（或眼睛）看向z轴的负方向。
 
@@ -73,13 +73,13 @@ published: true
 至此，我们已经转换到了相机坐标系下了。接下来是非常关键的一步变换，要将3D坐标（以相机坐标表示）投射到2D屏幕上。如前所述，这个变换是通过投影变换(projection)得到的。为了使得投射到2D屏幕上的图像看起来像是3D的，我们需要让这个变换满足人眼的一些直觉。根据实际经验，我们眼中看到的东西，离我们越远，显得越小；反之，离我们越近，显得越大。就像我们正对着一列铁轨或一个走廊看过去的那种效果一样，如下图：
 
 
-[<img src="/assets/photos_opengl_trans/1024px-Railroad-Tracks-Perspective.jpg" style="width:300px" alt="铁轨图片" />](/assets/photos_opengl_trans/1024px-Railroad-Tracks-Perspective.jpg)
+[<img src="/assets/photos_opengl_trans/part1/1024px-Railroad-Tracks-Perspective.jpg" style="width:300px" alt="铁轨图片" />](/assets/photos_opengl_trans/part1/1024px-Railroad-Tracks-Perspective.jpg)
 
-[<img src="/assets/photos_opengl_trans/One_point_perspective.jpg" style="width:400px" alt="走廊图片" />](/assets/photos_opengl_trans/One_point_perspective.jpg)
+[<img src="/assets/photos_opengl_trans/part1/One_point_perspective.jpg" style="width:400px" alt="走廊图片" />](/assets/photos_opengl_trans/part1/One_point_perspective.jpg)
 
 所以，投影变换也要保持这种效果。经过投影变换后，我们就得到了裁剪坐标，在此基础上再附加一个perspective division的过程，就变换到了NDC坐标。像前面所讲的一样，perspective division的细节我们先不追究，我们暂且认为相机坐标经过了投影变换就得到了NDC坐标。这个投影的过程，是通过从相机出发构建一个视锥体(frustum)得到的，如下图所示：
 
-[<img src="/assets/photos_opengl_trans/clip_space.png" style="width:500px" alt="投影变换展示图" />](/assets/photos_opengl_trans/clip_space.png)
+[<img src="/assets/photos_opengl_trans/part1/clip_space.png" style="width:500px" alt="投影变换展示图" />](/assets/photos_opengl_trans/part1/clip_space.png)
 
 上图中，从相机所在位置（也就是相机坐标系原点）沿着相机坐标系的z轴负方向望出去，同时指定一个近平面(N)和远平面(F)，在两个平面之间就截出一个视锥体。它由6个面组成，近平面(N)和远平面(F)分别是前后两个面，另外它还有上下左右四个面。其中，近平面(N)对应着最终要投影的2D屏幕。落在视锥体内部的顶点坐标，最终将投影到2D屏幕上；而落在视锥体外部的顶点坐标，则被裁剪掉。而且，落在视锥体内部的3D对象，它的位置越是靠近近平面，这个3D对象在近平面上的投影越大；相反越是远离近平面，则投影越小。
 
@@ -90,7 +90,7 @@ published: true
 * NDC坐标系的原点并没有在视锥体的中心。这主要是因为，在从相机坐标变换到NDC坐标的过程中，z轴上是一个非线性的对应关系。这个细节我们在后面讨论投影变换的计算时再详细说明。
 * 前面的本地坐标系、世界坐标系、相机坐标系，都是属于右手坐标系(right-handed coordinate system)。只有NDC坐标系是左手坐标系(left-handed coordinate system)。
 
-[<img src="/assets/photos_opengl_trans/400px-Cartesian_coordinate_system_handedness.svg.png" style="width:400px" alt="左手和右手坐标系展示图" />](/assets/photos_opengl_trans/400px-Cartesian_coordinate_system_handedness.svg.png)
+[<img src="/assets/photos_opengl_trans/part1/400px-Cartesian_coordinate_system_handedness.svg.png" style="width:400px" alt="左手和右手坐标系展示图" />](/assets/photos_opengl_trans/part1/400px-Cartesian_coordinate_system_handedness.svg.png)
 
 上面左图是左手坐标系，右图是右手坐标系。到底应该用左手坐标系还是右手坐标系，是一种约定俗成的习惯，不同的图形系统和规范很可能选择不一样的坐标系类型。但按照OpenGL的习惯，我们应该使用如前面所讲的坐标系类型。
 
