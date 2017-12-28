@@ -95,13 +95,24 @@ Matt Miesnieks已经给出了他的预测：是在——2021年！ （参见他�
 * 对现实世界的3D结构有清晰准确的理解；
 * 这个3D结构能够在多个客户端之间实时地共享。
 
+借助ARKit或ARCore能不能实现这两点呢？不能，至少目前还差得远。以ARKit为例，它对于周围环境的理解只是限于特征点(feature point)的层次。什么是特征点呢？直观来说呢，我们经常在一些AR的Demo中看到的那些小点点，就是特征点了。比如下图中的黄色小点点：
 
+[<img src="/assets/photos_arworld/arkit_feature_points.jpeg" style="width:300px" alt="ARKit的特征点演示图" />](/assets/photos_arworld/arkit_feature_points.jpeg)
+
+ARKit的基本原理是这样：它同时运行两套系统，一个是基于摄像头(光学)的，另一个是基于IMU(加速度计、陀螺仪等)的。它们分别对手机的位置和姿态(合称位姿，pose)进行估计，然后通过某种类似滤波的方式将两者的结果结合起来，获得一个更准确的位姿估计。其中利用摄像头拍摄的图像进行位姿估计的过程，是先对各帧图像提取特征点，也就是上图中的这些小点点，但这时只能确定它们在图像中的像素位置，还无法知道它们在真实环境中的3D坐标。然后ARKit会在前后相邻的各帧图像之间追踪这些特征点，并通过一定的算法推算出它们的相对深度，再进一步结合IMU对移动距离的估算，从而最终获得特征点真实的3D坐标(当然，有一定误差)。
+
+对于我们将要讨论的问题来说，这里有两个关键点需要注意：
+
+* 这些特征点是非常稀疏的，
 
 * <https://medium.com/super-ventures-blog/arkit-and-arcore-will-not-usher-massive-adoption-of-mobile-ar-da3d87f7e5ad>{:target="_blank"}
 * <https://medium.com/super-ventures-blog/why-is-arkit-almost-useless-without-the-arcloud-6ee1e7affc65>{:target="_blank"}
 
 
 两个关键点：深度（小花招）、稠密地图/点云
+
+与真实世界（AR云）的对齐
+
 对3D世界的理解。
 深度摄像头和ARKit的小花招
 深度摄像头 稀疏 稠密
