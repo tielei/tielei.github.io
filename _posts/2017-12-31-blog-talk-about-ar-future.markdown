@@ -2,7 +2,7 @@
 layout: post
 category: "other"
 title: "为什么未来是增强现实的？"
-date: 2017-12-13 00:00:01 +0800
+date: 2017-12-31 00:00:01 +0800
 published: true
 ---
 
