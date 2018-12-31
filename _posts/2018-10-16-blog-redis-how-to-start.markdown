@@ -6,7 +6,7 @@ date: 2018-10-16 00:00:00 +0800
 published: true
 ---
 
-自从我写了[Redis内部数据结构详解](https://mp.weixin.qq.com/s/3TU9qxHJyxHJgVDaYXoluA)的一系列文章之后，有不少读者前来阅读和讨论。其中也有不少人问起阅读Redis源码的方法。正所谓「授人以鱼不如授人以渔」，本文就集中讲一讲这样一个话题：如果你现在想阅读Redis源码，那么从哪里入手？
+自从我写了[Redis内部数据结构详解](https://mp.weixin.qq.com/s/3TU9qxHJyxHJgVDaYXoluA)的一系列文章之后，有不少读者前来阅读和讨论。其中也有人问起阅读Redis源码的方法。正所谓「授人以鱼不如授人以渔」，本文就集中讲一讲这样一个话题：如果你现在想阅读Redis源码，那么从哪里入手？算是对之前系列文章的一个补充。
 
 <!--more-->
 
@@ -36,11 +36,11 @@ Redis源码的main函数在源文件server.c中。main函数开始执行后的�
 [<img src="/assets/photos_redis/how-to-start/main_start_event_loop.png" style="width:400px" alt="初始化和事件循环流程图" />](/assets/photos_redis/how-to-start/main_start_event_loop.png)
 
 首先，我们看一下初始化阶段中的各个步骤：
-* **配置加载和初始化**。这一步表示Redis服务器基本数据结构和各种参数的初始化。在Redis源码中，Redis服务器是用一个叫做redisServer的struct来表达的，里面定义了Redis服务器赖以运行的各种参数，比如监听的端口号和文件描述符、当前连接的各个client端、Redis命令表(command table)配置、持久化相关的各种参数，等等，以及后面马上会讨论的事件循环结构。Redis服务器在运行时就是由一个redisServer类型的全局变量来表示的（变量名叫server），这一步的初始化主要就是对于这个全局变量进行初始化。在整个初始化过程中，有一个需要特别关注的函数：populateCommandTable。它初始化了Redis命令表，通过它可以由任意一个Redis命令的名字查找该命令的配置信息（比如该命令接收的命令参数个数、执行函数入口等）。在本文的第二部分，我们会看到如何从接收一个Redis命令的请求开始，一步步执行到来查阅这个命令表，从而找到该命令的执行入口。另外，这一步中还有一个值得一提的地方：在对全局的redisServer结构进行了初始化之后，还需要从配置文件（redis.conf）中加载配置。这个过程可能覆盖掉之前初始化过的redisServer结构中的某些参数。
-* **创建事件循环**。在Redis中，事件循环是用一个叫aeEventLoop的struct来表示的。「创建事件循环」这一步主要就是创建一个aeEventLoop结构，并存储到server全局变量中。另外，事件循环的执行依赖系统底层的IO多路复用机制(IO multiplexing)，比如Linux系统上的[epoll机制](https://man.cx/epoll){:target="_blank"}。因此，这一步也包含对于底层IO多路复用机制的初始化（调用系统API）。
-* **开始socket监听**。服务器程序需要监听才能收到请求。根据配置，这一步可能会打开两种监听：对于TCP连接的监听和对于[Unix domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket){:target="_blank"}的监听。「Unix domain socket」是一种高效的进程间通信([IPC](https://en.wikipedia.org/wiki/Inter-process_communication){:target="_blank"})机制，在[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}标准中也有[明确的要求](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_un.h.html){:target="_blank"}，用于在同一台主机上的两个不同进程之间进行通信，比使用TCP协议性能更高（因为省去了协议栈的开销）。当使用Redis客户端连接同一台机器上的Redis服务器时，可以选择使用「Unix domain socket」进行连接。但不管是哪一种监听，程序都会获得文件描述符，并存储到server全局变量中。对于TCP的监听来说，由于监听的IP地址和端口可以绑定多个，因此获得的用于监听TCP连接的文件描述符也可以包含多个。
-* **注册timer事件回调**。Redis作为一个单线程(single-threaded)的程序，它如果想调度一些异步执行的任务，比如周期性地执行过期key的回收动作，除了依赖事件循环机制，没有其它的办法。这一步就是向前面刚刚创建好的事件循环中注册一个timer事件，并配置成可以周期性地执行一个回调函数：serverCron。由于Redis只有一个线程，因此这个函数周期性的执行也是在这个线程内，它由事件循环来驱动（即在合适的时机调用），但不影响同一个线程上其它逻辑的执行（时间分片）。serverCron函数到底做了什么呢？实际上，它除了周期性地执行过期key的回收动作，还执行了很多其它任务，比如主从重连、Cluster节点间的重连、BGSAVE和AOF rewrite的异步执行，等等。这个不是本文的重点，这里就不展开描述了。
-* **注册IO事件回调**。Redis服务端最主要的工作就是监听IO事件，从中分析出来自客户端的命令请求，执行命令，然后返回响应结果。对于IO事件的监听，自然也是依赖事件循环。前面提到过，Redis可以打开两种监听：对于TCP连接的监听和对于Unix domain socket的监听。因此，这里也包含对于两种IO事件的回调的注册，两个回调函数分别是acceptTcpHandler和acceptUnixHandler。对于来自Redis客户端的请求的处理，就会走到这两个函数中去。我们在下一部分就会讨论到这个处理过程。
+* **配置加载和初始化**。这一步表示Redis服务器基本数据结构和各种参数的初始化。在Redis源码中，Redis服务器是用一个叫做redisServer的struct来表达的，里面定义了Redis服务器赖以运行的各种参数，比如监听的端口号和文件描述符、当前连接的各个client端、Redis命令表(command table)配置、持久化相关的各种参数，等等，以及后面马上会讨论的事件循环结构。Redis服务器在运行时就是由一个redisServer类型的全局变量来表示的（变量名叫server），这一步的初始化主要就是对于这个全局变量进行初始化。在整个初始化过程中，有一个需要特别关注的函数：`populateCommandTable`。它初始化了Redis命令表，通过它可以由任意一个Redis命令的名字查找该命令的配置信息（比如该命令接收的命令参数个数、执行函数入口等）。在本文的第二部分，我们会看到如何从接收一个Redis命令的请求开始，一步步执行到来查阅这个命令表，从而找到该命令的执行入口。另外，这一步中还有一个值得一提的地方：在对全局的redisServer结构进行了初始化之后，还需要从配置文件（redis.conf）中加载配置。这个过程可能覆盖掉之前初始化过的redisServer结构中的某些参数。
+* **创建事件循环**。在Redis中，事件循环是用一个叫aeEventLoop的struct来表示的。「创建事件循环」这一步主要就是创建一个aeEventLoop结构，并存储到server全局变量（即前面提到的redisServer类型的结构）中。另外，事件循环的执行依赖系统底层的IO多路复用机制(IO multiplexing)，比如Linux系统上的[epoll机制](https://man.cx/epoll){:target="_blank"}。因此，这一步也包含对于底层IO多路复用机制的初始化（调用系统API）。
+* **开始socket监听**。服务器程序需要监听才能收到请求。根据配置，这一步可能会打开两种监听：对于TCP连接的监听和对于[Unix domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket){:target="_blank"}的监听。「Unix domain socket」是一种高效的进程间通信([IPC](https://en.wikipedia.org/wiki/Inter-process_communication){:target="_blank"})机制，在[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}标准中也有[明确的要求](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_un.h.html){:target="_blank"}，用于在同一台主机上的两个不同进程之间进行通信，比使用TCP协议性能更高（因为省去了协议栈的开销）。当使用Redis客户端连接同一台机器上的Redis服务器时，可以选择使用「Unix domain socket」进行连接。但不管是哪一种监听，程序都会获得文件描述符，并存储到server全局变量中。对于TCP的监听来说，由于监听的IP地址和端口可以绑定多个，因此获得的用于监听TCP连接的文件描述符也可以包含多个。后面，程序就可以拿这一步获得的文件描述符去注册IO事件回调了。
+* **注册timer事件回调**。Redis作为一个单线程(single-threaded)的程序，它如果想调度一些异步执行的任务，比如周期性地执行过期key的回收动作，除了依赖事件循环机制，没有其它的办法。这一步就是向前面刚刚创建好的事件循环中注册一个timer事件，并配置成可以周期性地执行一个回调函数：`serverCron`。由于Redis只有一个线程，因此这个函数周期性的执行也是在这个线程内，它由事件循环来驱动（即在合适的时机调用），但不影响同一个线程上其它逻辑的执行（相当于按时间分片了）。`serverCron`函数到底做了什么呢？实际上，它除了周期性地执行过期key的回收动作，还执行了很多其它任务，比如主从重连、Cluster节点间的重连、BGSAVE和AOF rewrite的异步执行，等等。这个不是本文的重点，这里就不展开描述了。
+* **注册IO事件回调**。Redis服务端最主要的工作就是监听IO事件，从中分析出来自客户端的命令请求，执行命令，然后返回响应结果。对于IO事件的监听，自然也是依赖事件循环。前面提到过，Redis可以打开两种监听：对于TCP连接的监听和对于Unix domain socket的监听。因此，这里也包含对于两种IO事件的回调的注册，两个回调函数分别是`acceptTcpHandler`和`acceptUnixHandler`。对于来自Redis客户端的请求的处理，就会走到这两个函数中去。我们在下一部分就会讨论到这个处理过程。
 * **启动事件循环**。前面创建好了事件循环的结构，但还没有真正进入循环的逻辑。过了这一步，事件循环就运行起来，驱动前面注册的timer事件回调和IO事件回调不断执行。
 
 注意：Redis服务器的初始化其实还要完成很多很多事，比如加载数据到内存，Cluster集群的初始化，等等。但为了简化，上面讨论的初始化流程，只列出了我们当前关注的步骤。本文关注的是由事件驱动的整个运行机制以及跟命令执行直接相关的部分，因此我们暂时忽略掉其它不太相关的步骤。
@@ -48,6 +48,10 @@ Redis源码的main函数在源文件server.c中。main函数开始执行后的�
 现在，我们继续去讨论上面流程图中的第二个阶段：事件循环。
 
 我们先想一下为什么这里需要一个循环。
+
+一个程序启动后，如果没有循环，那么它从第一条指令一直执行到最后一条指令，然后就只能退出了。而Redis作为一个服务端程序，是要等着客户端不停地发来请求然后做相应的处理，不能自己执行完就退出了。因此，Redis启动后必定要进入一个无限循环。显然，程序在每一次的循环执行中，如果有事件（包括客户端请求的IO事件）发生，就会去处理这些事件。但如果没有事件发生呢？程序显然也不应该空转，而是应该等待，把整个循环阻塞住。这里的等待，就是上面流程图里的「等待事件发生」这个步骤。那么，当整个循环被阻塞住之后，什么时候再恢复执行呢？自然是等待的事件发生的时候，程序被重新唤醒，循环继续下去。这里需要的等待和唤醒操作，怎么实现呢？它们都需要依赖系统的能力才能做到。
+
+实际上，这种事件循环机制，对于开发过手机客户端的同学来说，是非常常见且基础的机制。像跑在iOS/Android上面的App，这些程序都有一个消息循环，负责等待各种UI事件（点击、滑动等）的发生，然后进行处理。同理，对应到服务端，这个循环的原理可以认为差不多，只是等待和处理的事件变成是IO事件了。
 
 单线程。
 
