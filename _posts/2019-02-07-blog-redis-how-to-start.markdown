@@ -70,6 +70,30 @@ timer事件和IO事件是两种截然不同的事件，如何由事件循环来�
 
 ### Redis命令请求的处理流程概述
 
+我们在前面讨论「注册IO事件回调」的时候提到过，Redis对于来自客户端的请求的处理，都会走到`acceptTcpHandler`或`acceptUnixHandler`这两个回调函数中去。实际上，这样描述还过于粗略。
+
+Redis客户端向服务器发送命令，其实可以细分为两个过程：
+1. **连接建立**。客户端发起连接请求（通过TCP或[Unix domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket){:target="_blank"}），服务器接受连接。
+2. **命令发送、执行和响应**。连接一旦建立好，客户端就可以在这个新建立的连接上发送命令数据，服务器收到后执行这个命令，并把执行结果返回给客户端。而且，在新建立的连接上，这整个的「命令发送、执行和响应」的过程就可以反复执行。
+
+上述第一个过程，「连接建立」，对应到服务端的代码，就是会走到`acceptTcpHandler`或`acceptUnixHandler`这两个回调函数中去。换句话说，Redis服务器每收到一个新的连接请求，就会由事件循环触发一个IO事件，从而执行到`acceptTcpHandler`或`acceptUnixHandler`回调函数的代码。
+
+接下来，从socket编程的角度，服务器应该调用[`accept`](https://man.cx/accept(2)){:target="_blank"}系统API[7]来接受连接请求，并为新的连接创建出一个socket。这个新的socket也就对应着一个新的文件描述符。为了在新的连接上能接收到客户端发来的命令，接下来必须在事件循环中为这个新的文件描述注册一个IO事件回调。这个过程的流程图如下：
+
+[<img src="/assets/photos_redis/how-to-start/accept_handler_flow_chart.png" style="width:260px" alt="连接建立过程的流程图" />](/assets/photos_redis/how-to-start/accept_handler_flow_chart.png)
+
+从上面流程图可以看出，新的连接注册了一个IO事件回调，即`readQueryFromClient`。也就是说，对应前面讲的第二个过程，「命令发送、执行和响应」，当服务器收到命令的时候，就会执行到`readQueryFromClient`回调，这个函数的实现就是在处理命令的「执行和响应」了。因此，下面我们看一下这个函数的执行流程图：
+
+[<img src="/assets/photos_redis/how-to-start/process_query_flow_chart.png" style="width:300px" alt="命令接收和执行的流程图" />](/assets/photos_redis/how-to-start/process_query_flow_chart.png)
+
+上述流程图有几个需要注意的点：
+* 从socket中读入数据，是按照流的方式。也就是说，站在应用层的角度，从底层网络层读入的数据，是由一个个字节组成的字节流。而我们需要从这些字节流中解析出完整的Redis命令，才能知道接下来如何处理。但由于网络传输的特点，我们并不能控制一次读入多少个字节。实际上，我们是调用[`read`](https://man.cx/read(2)){:target="_blank"}系统API[8]来读入数据的。虽然调用`read`时我们可以指定期望读取的字节数，但它并不会保证一定能返回期望长度的数据。比如我们想读100个字节，但可能只能读到80个字节，剩下的20个字节可能还在网络传输中没有到达。这种情况给接收Redis命令的过程造成了很大的麻烦：首先，可能我们读到的数据还不够一个完整的命令，这时我们应该继续等待更多的数据到达。其次，我们可能一次性收到了大量的数据，里面包含不止一个命令，这时我们必须把里面包含的所有命令都解析出来，而且要正确解析到最后一个完整命令的边界。如果最后一个完整命令后面还有多余的数据，那么这些数据应该留在下次有更多数据到达时再处理。这个复杂的过程一般称为「粘包」。
+* 「粘包」处理的第一个表现，就是当尝试解析出一个完整的命令时，如果解析失败了，那么上面的流程就直接退出了。接下来，如果有更多数据到达，事件循环会触发IO事件回调，重新进入上面的流程继续处理。
+* 「粘包」处理的第二个表现，是上面流程图中的大循环。只要暂存输入数据的query buffer中还有数据可以处理，那么就不停地去尝试解析完整命令，直到把里面所有的完整命令都处理完，才退出循环。
+* 查命令表那一步，就是查找本文前面提到的由`populateCommandTable`初始化的命令表，这个命令表存储在server.c的全局变量`redisCommandTable`当中。命令表中存有各个Redis命令的执行入口。
+* 对于命令的执行结果，在上面的流程图中只是最后存到了一个输出buffer中，并没有真正输出给客户端。输出给客户端的过程不在这个流程当中，而是由另外一个同样是事件循环驱动的过程来完成。这个过程涉及很多细节，我们在这里先略过，留在后面第四部分再来讨论。
+
+### 事件机制介绍
 
 
 
@@ -88,3 +112,5 @@ timer事件的一个缺点：不能动态增加，因为不会被唤醒。
 * [4] POSIX.1-2017, <http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html>{:target="_blank"}
 * [5] Definitions for UNIX domain sockets, <http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_un.h.html>{:target="_blank"}
 * [6] Create descriptor pair for interprocess communication, <https://man.cx/pipe>{:target="_blank"}
+* [7] BSD System Calls Manual ACCEPT(2), <https://man.cx/accept(2)>{:target="_blank"}
+* [8] BSD System Calls Manual READ(2), <https://man.cx/read(2)>{:target="_blank"}
