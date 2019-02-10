@@ -38,7 +38,7 @@ Redis源码的main函数在源文件server.c中。main函数开始执行后的�
 首先，我们看一下初始化阶段中的各个步骤：
 * **配置加载和初始化**。这一步表示Redis服务器基本数据结构和各种参数的初始化。在Redis源码中，Redis服务器是用一个叫做redisServer的struct来表达的，里面定义了Redis服务器赖以运行的各种参数，比如监听的端口号和文件描述符、当前连接的各个client端、Redis命令表(command table)配置、持久化相关的各种参数，等等，以及后面马上会讨论的事件循环结构。Redis服务器在运行时就是由一个redisServer类型的全局变量来表示的（变量名就叫server），这一步的初始化主要就是对于这个全局变量进行初始化。在整个初始化过程中，有一个需要特别关注的函数：`populateCommandTable`。它初始化了Redis命令表，通过它可以由任意一个Redis命令的名字查找该命令的配置信息（比如该命令接收的命令参数个数、执行函数入口等）。在本文的第二部分，我们将会一起来看一看如何从接收一个Redis命令的请求开始，一步步执行到来查阅这个命令表，从而找到该命令的执行入口。另外，这一步中还有一个值得一提的地方：在对全局的redisServer结构进行了初始化之后，还需要从配置文件（redis.conf）中加载配置。这个过程可能覆盖掉之前初始化过的redisServer结构中的某些参数。换句话说，就是先经过一轮初始化，保证Redis的各个内部数据结构以及参数都有缺省值，然后再从配置文件中加载自定义的配置。
 * **创建事件循环**。在Redis中，事件循环是用一个叫aeEventLoop的struct来表示的。「创建事件循环」这一步主要就是创建一个aeEventLoop结构，并存储到server全局变量（即前面提到的redisServer类型的结构）中。另外，事件循环的执行依赖系统底层的IO多路复用机制(IO multiplexing)，比如Linux系统上的[epoll机制](https://man.cx/epoll){:target="_blank"}[1]。因此，这一步也包含对于底层IO多路复用机制的初始化（调用系统API）。
-* **开始socket监听**。服务器程序需要监听才能收到请求。根据配置，这一步可能会打开两种监听：对于TCP连接的监听和对于[Unix domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket){:target="_blank"}[2]的监听。「Unix domain socket」是一种高效的进程间通信([IPC](https://en.wikipedia.org/wiki/Inter-process_communication){:target="_blank"}[3])机制，在[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}[4]标准中也有[明确的要求](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_un.h.html){:target="_blank"}[5]，用于在同一台主机上的两个不同进程之间进行通信，比使用TCP协议性能更高（因为省去了协议栈的开销）。当使用Redis客户端连接同一台机器上的Redis服务器时，可以选择使用「Unix domain socket」进行连接。但不管是哪一种监听，程序都会获得文件描述符，并存储到server全局变量中。对于TCP的监听来说，由于监听的IP地址和端口可以绑定多个，因此获得的用于监听TCP连接的文件描述符也可以包含多个。后面，程序就可以拿这一步获得的文件描述符去注册IO事件回调了。
+* **开始socket监听**。服务器程序需要监听才能收到请求。根据配置，这一步可能会打开两种监听：对于TCP连接的监听和对于[Unix domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket){:target="_blank"}[2]的监听。「Unix domain socket」是一种高效的进程间通信([IPC](https://en.wikipedia.org/wiki/Inter-process_communication){:target="_blank"}[3])机制，在[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}规范[4]中也有[明确的要求](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_un.h.html){:target="_blank"}[5]，用于在同一台主机上的两个不同进程之间进行通信，比使用TCP协议性能更高（因为省去了协议栈的开销）。当使用Redis客户端连接同一台机器上的Redis服务器时，可以选择使用「Unix domain socket」进行连接。但不管是哪一种监听，程序都会获得文件描述符，并存储到server全局变量中。对于TCP的监听来说，由于监听的IP地址和端口可以绑定多个，因此获得的用于监听TCP连接的文件描述符也可以包含多个。后面，程序就可以拿这一步获得的文件描述符去注册IO事件回调了。
 * **注册timer事件回调**。Redis作为一个单线程(single-threaded)的程序，它如果想调度一些异步执行的任务，比如周期性地执行过期key的回收动作，除了依赖事件循环机制，没有其它的办法。这一步就是向前面刚刚创建好的事件循环中注册一个timer事件，并配置成可以周期性地执行一个回调函数：`serverCron`。由于Redis只有一个主线程，因此这个函数周期性的执行也是在这个线程内，它由事件循环来驱动（即在合适的时机调用），但不影响同一个线程上其它逻辑的执行（相当于按时间分片了）。`serverCron`函数到底做了什么呢？实际上，它除了周期性地执行过期key的回收动作，还执行了很多其它任务，比如主从重连、Cluster节点间的重连、BGSAVE和AOF rewrite的触发执行，等等。这个不是本文的重点，这里就不展开描述了。
 * **注册IO事件回调**。Redis服务端最主要的工作就是监听IO事件，从中分析出来自客户端的命令请求，执行命令，然后返回响应结果。对于IO事件的监听，自然也是依赖事件循环。前面提到过，Redis可以打开两种监听：对于TCP连接的监听和对于Unix domain socket的监听。因此，这里就包含对于这两种IO事件的回调的注册，两个回调函数分别是`acceptTcpHandler`和`acceptUnixHandler`。对于来自Redis客户端的请求的处理，就会走到这两个函数中去。我们在下一部分就会讨论到这个处理过程。另外，其实Redis在这里还会注册一个IO事件，用于通过管道([pipe](https://man.cx/pipe){:target="_blank"}[6])机制与module进行双向通信。这个也不是本文的重点，我们暂时忽略它。
 * **初始化后台线程**。Redis会创建一些额外的线程，在后台运行，专门用于处理一些耗时的并且可以被延迟执行的任务（一般是一些清理工作）。在Redis里面这些后台线程被称为bio(Background I/O service)。它们负责的任务包括：可以延迟执行的文件关闭操作(比如unlink命令的执行)，AOF的持久化写库操作(即fsync调用，但注意只有可以被延迟执行的fsync操作才在后台线程执行)，还有一些大key的清除操作(比如flushdb async命令的执行)。可见bio这个名字有点名不副实，它做的事情不一定跟I/O有关。对于这些后台线程，我们可能还会产生一个疑问：前面的初始化过程，已经注册了一个timer事件回调，即`serverCron`函数，按说后台线程执行的这些任务似乎也可以放在`serverCron`中去执行。因为`serverCron`函数也是可以用来执行后台任务的。实际上这样做是不行的。前面我们已经提到过，`serverCron`由事件循环来驱动，执行还是在Redis主线程上，相当于和主线程上执行的其它操作（主要是对于命令请求的执行）按时间进行分片了。这样的话，`serverCron`里面就不能执行过于耗时的操作，否则它就会影响Redis执行命令的响应时间。因此，对于耗时的、并且可以被延迟执行的任务，就只能放到单独的线程中去执行了。
@@ -58,7 +58,7 @@ timer事件和IO事件是两种截然不同的事件，如何由事件循环来�
 
 前面流程图的第二阶段已经比较清楚地表达出了事件循环的执行流程。在这里我们对于其中一些步骤需要关注的地方做一些补充说明：
 * **查找最近的timer事件**。如前所述，事件循环需要等待timer和IO两种事件。对于IO事件，只需要明确要等待的是哪些文件描述符就可以了；而对于timer事件，还需要经过一番比较，明确在当前这一轮循环中需要等待多长时间。由于系统运行过程中可能注册多个timer事件回调，比如先要求在100毫秒后执行一个回调，同时又要求在200毫秒后执行另一个回调，这就要求事件循环在它的每一轮执行之前，首先要找出最近需要执行的那次timer事件。这样事件循环在接下来的等待中就知道该等待多长时间（在这个例子中，我们需要等待100毫秒）。 
-* **等待事件发生**。这一步我们需要能够同时等待timer和IO两种事件的发生。要做到这一点，我们依赖底层系统的IO多路复用机制(IO multiplexing)。这种机制一般是这样设计的：它允许我们针对多个文件描述符来等待对应的IO事件发生，并同时可以指定一个最长的阻塞超时时间。如果在这段阻塞时间内，有IO事件发生，那么程序会被唤醒继续执行；如果一直没有IO事件发生，而是指定的时间先超时了，那么程序也会被唤醒。对于timer事件的等待，就是依靠这里的超时机制。当然，这里的超时时间也可以指定成无限长，这就相当于只等待IO事件。我们再看一下上一步**查找最近的timer事件**，查找完之后可能有三种结果，因此这一步等待也可能出现三种对应的情况：
+* **等待事件发生**。这一步我们需要能够同时等待timer和IO两种事件的发生。要做到这一点，我们依赖系统底层的IO多路复用机制(IO multiplexing)。这种机制一般是这样设计的：它允许我们针对多个文件描述符来等待对应的IO事件发生，并同时可以指定一个最长的阻塞超时时间。如果在这段阻塞时间内，有IO事件发生，那么程序会被唤醒继续执行；如果一直没有IO事件发生，而是指定的时间先超时了，那么程序也会被唤醒。对于timer事件的等待，就是依靠这里的超时机制。当然，这里的超时时间也可以指定成无限长，这就相当于只等待IO事件。我们再看一下上一步**查找最近的timer事件**，查找完之后可能有三种结果，因此这一步等待也可能出现三种对应的情况：
 	* 第一种情况，查找到一个最近的timer事件，它要求在未来某一个时刻触发。那么，这一步只需要把这个未来时刻转换成阻塞超时时间即可。
 	* 第二种情况，查找到一个最近的timer事件，但它要求的时刻已经过去了。那么，这时候它应该立刻被触发，而不应该再有任何等待。当然，在实现的时候还是调用了等待的API，只是把超时事件设置成0就可以达到这个效果。
 	* 第三种情况，没有查找到任何注册的timer事件。那么，这时候应该把超时时间设置成无限长。接下来只有IO事件发生才能唤醒。
@@ -95,11 +95,38 @@ Redis客户端向服务器发送命令，其实可以细分为两个过程：
 
 ### 事件机制介绍
 
+在本文第一部分，我们提到过，我们必须有一种机制能够同时等待IO和timer这两种事件的发生。这一机制就是系统底层的IO多路复用机制(IO multiplexing)。但是，在不同的系统上，存在多种不同的IO多路复用机制。因此，为了方便上层程序实现，Redis实现了一个简单的事件驱动程序库，即ae.c的代码，它屏蔽了系统底层在事件处理上的差异，并实现了我们前面一直在讨论的事件循环。
 
+在Redis的事件库的实现中，目前它底层支持4种IO多路复用机制：
+* **[`select`](https://man.cx/select(2)){:target="_blank"}系统调用**[9]。这应该是最早出现的一种IO多路复用机制，于1983年在4.2BSD Unix中被首次使用[[10](https://daniel.haxx.se/docs/poll-vs-select.html){:target="_blank"}]。它是[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}规范的一部分。另外，跟`select`类似的还有一个[`poll`](https://man.cx/poll(2)){:target="_blank"}系统调用[11]，它是1986年在SVR3 Unix系统中首次使用的[10]，也遵循[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}规范。只要是遵循POSIX规范的操作系统，它就能支持`select`和`poll`机制，因此在目前我们常见的系统中这两种IO事件机制一般都是支持的。
+* **[epoll机制](https://man.cx/epoll){:target="_blank"}**[1]。epoll是比`select`更新的一种IO多路复用机制，最早出现在Linux内核的2.5.44版本中[12]。它被设计出来是为了代替旧的`select`和`poll`，提供一种更高效的IO机制。注意，epoll是Linux系统所特有的，也不属于POSIX规范。
+* **[`kqueue`](https://man.cx/kqueue){:target="_blank"}机制**[13]。`kqueue`最早是2000年在FreeBSD 4.1上被设计出来的，后来也支持NetBSD、OpenBSD、DragonflyBSD和macOS系统[14]。它和Linux系统上的epoll是类似的。
+* **event ports**。这是在[illumos](https://en.wikipedia.org/wiki/Illumos){:target="_blank"}系统[15]上特有的一种IO事件机制。
 
-timer事件的一个缺点：不能动态增加，因为不会被唤醒。
+既然在不同系统上有不同的事件机制，那么Redis在不同系统上编译时采用的是哪个机制呢？由于在上面四种机制中，后三种是更现代，也是比`select`和`poll`更高效的方案，因此Redis优先选择使用后三种机制。
 
-第三部分：为什么没有使用event lib
+通过上面对各种IO机制所适用的操作系统的总结，我们很容易看出，如果你在macOS上编译Redis，那么它底层会选用`kqueue`；而如果在Linux上编译则会选择**epoll**，这也是Redis在实际运行中比较常见的情况。
+
+需要注意的是，这里所依赖的IO事件机制，与如何实现高并发的网络服务关系密切。很多技术同学应该都听说过[C10K问题](http://www.kegel.com/c10k.html){:target="_blank"}[16]。随着硬件和网络的发展，单机支撑10000个连接，甚至单机支撑百万个连接，都成为可能[17]。高性能网络编程与这些底层机制息息相关。这里推荐几篇blog，有兴趣的话可以去仔细阅读（访问链接请参见文末参考文献）：
+* [The C10K problem](http://www.kegel.com/c10k.html){:target="_blank"}[16]；
+* [Epoll is fundamentally broken](https://idea.popcount.org/2017-03-20-epoll-is-fundamentally-broken-22/){:target="_blank"}[18]；
+* [The Implementation of epoll](https://idndx.com/2014/09/01/the-implementation-of-epoll-1/){:target="_blank"}[19]；
+
+现在我们回过头来再看一下底层的这些IO事件机制是如何支持了Redis的事件循环的：
+* 首先，向事件循环中注册IO事件回调的时候，需要指定哪个回调函数注册到哪个事件上（事件用文件描述符来表示）。事件和回调函数的对应关系，由Redis上层封装的事件驱动程序库来维护。具体参见函数`aeCreateFileEvent`的代码。
+* 类似地，向事件循环中注册timer事件回调的时候，需要指定多长时间之后执行哪个回调函数。这里需要记录哪个回调函数预期在哪个时刻被调用，这也是由Redis上层封装的事件驱动程序库来维护的。具体参见函数`aeCreateTimeEvent`的代码。
+* 底层的各种事件机制都会提供一个等待事件的操作，比如epoll提供的`epoll_wait` API。这个等待操作一般可以指定预期等待的事件列表（事件用文件描述符来表示），并同时可以指定一个超时时间（即最大等待多长时间）。在事件循环中需要等待事件发生的时候，就调用这个等待操作，传入之前注册过的所有IO事件，并把最近的timer事件所对应的时刻转换成这里需要的超时时间。具体参见函数`aeProcessEvents`的代码。
+* 从上一步的等待操作中唤醒，有两种情况：如果是IO事件发生了，那么就根据触发的事件查到IO回调函数，进行调用；如果是超时了，那么检查所有注册过的timer事件，对于预期调用时刻超过当前时间的回调函数进行调用。
+
+最后，关于事件机制，还有一些信息值得关注：业界已经有一些比较成熟的开源的事件库了，典型的比如[libevent](http://libevent.org/){:target="_blank"}[20]和[libev](https://github.com/enki/libev){:target="_blank"}[21]。一般来说，这些开源库屏蔽了非常复杂的底层系统细节，并对不同的系统版本实现做了兼容，是非常有价值的。那为什么Redis的作者还是自己实现了一套呢？在Google Group的一个帖子上，Redis的作者给出了一些原因。帖子地址如下：
+* <https://groups.google.com/group/redis-db/browse_thread/thread/b52814e9ef15b8d0/>{:target="_blank"}
+
+原因大致总结起来就是：
+* 不想引入太大的外部依赖。比如[libevent](http://libevent.org/){:target="_blank"}太大了，比Redis的代码库还大。
+* 方便做一些定制化的开发。
+* 第三方库有时候会出现一些意想不到的bug。
+
+### 代码调用关系
 
 ---
 根据自己看代码过程中的疑问和过程。
@@ -114,3 +141,16 @@ timer事件的一个缺点：不能动态增加，因为不会被唤醒。
 * [6] Create descriptor pair for interprocess communication, <https://man.cx/pipe>{:target="_blank"}
 * [7] BSD System Calls Manual ACCEPT(2), <https://man.cx/accept(2)>{:target="_blank"}
 * [8] BSD System Calls Manual READ(2), <https://man.cx/read(2)>{:target="_blank"}
+* [9] BSD System Calls Manual SELECT(2), <https://man.cx/select(2)>{:target="_blank"}
+* [10] poll vs select vs event-based, <https://daniel.haxx.se/docs/poll-vs-select.html>{:target="_blank"}
+* [11] BSD System Calls Manual POLL(2), <https://man.cx/poll(2)>{:target="_blank"}
+* [12] Epoll from Wikipedia, <https://en.wikipedia.org/wiki/Epoll>{:target="_blank"}
+* [13] BSD System Calls Manual KQUEUE(2), <https://man.cx/kqueue>{:target="_blank"}
+* [14] Kqueue from Wikipedia, <https://en.wikipedia.org/wiki/Kqueue>{:target="_blank"}
+* [15] illumos from Wikipedia, <https://en.wikipedia.org/wiki/Illumos>{:target="_blank"}
+* [16] The C10K problem, <http://www.kegel.com/c10k.html>{:target="_blank"}
+* [17] C10k problem from Wikipedia, <https://en.wikipedia.org/wiki/C10k_problem>{:target="_blank"}
+* [18] Epoll is fundamentally broken, <https://idea.popcount.org/2017-03-20-epoll-is-fundamentally-broken-22/>{:target="_blank"}
+* [19] The Implementation of epoll, <https://idndx.com/2014/09/01/the-implementation-of-epoll-1/>{:target="_blank"}
+* [20] libevent, <http://libevent.org/>{:target="_blank"}
+* [21] libev, <https://github.com/enki/libev>{:target="_blank"}
