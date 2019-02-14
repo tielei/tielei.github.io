@@ -58,10 +58,10 @@ timer事件和I/O事件是两种截然不同的事件，如何由事件循环来
 前面流程图的第二阶段已经比较清楚地表达出了事件循环的执行流程。在这里我们对于其中一些步骤需要关注的地方做一些补充说明：
 * **查找最近的timer事件**。如前所述，事件循环需要等待timer和I/O两种事件。对于I/O事件，只需要明确要等待的是哪些文件描述符就可以了；而对于timer事件，还需要经过一番比较，明确在当前这一轮循环中需要等待多长时间。由于系统运行过程中可能注册多个timer事件回调，比如先要求在100毫秒后执行一个回调，同时又要求在200毫秒后执行另一个回调，这就要求事件循环在它的每一轮执行之前，首先要找出最近需要执行的那次timer事件。这样事件循环在接下来的等待中就知道该等待多长时间（在这个例子中，我们需要等待100毫秒）。 
 * **等待事件发生**。这一步我们需要能够同时等待timer和I/O两种事件的发生。要做到这一点，我们依赖系统底层的I/O多路复用机制(I/O multiplexing)。这种机制一般是这样设计的：它允许我们针对多个文件描述符来等待对应的I/O事件发生，并同时可以指定一个最长的阻塞超时时间。如果在这段阻塞时间内，有I/O事件发生，那么程序会被唤醒继续执行；如果一直没有I/O事件发生，而是指定的时间先超时了，那么程序也会被唤醒。对于timer事件的等待，就是依靠这里的超时机制。当然，这里的超时时间也可以指定成无限长，这就相当于只等待I/O事件。我们再看一下上一步**查找最近的timer事件**，查找完之后可能有三种结果，因此这一步等待也可能出现三种对应的情况：
-	* 第一种情况，查找到一个最近的timer事件，它要求在未来某一个时刻触发。那么，这一步只需要把这个未来时刻转换成阻塞超时时间即可。
-	* 第二种情况，查找到一个最近的timer事件，但它要求的时刻已经过去了。那么，这时候它应该立刻被触发，而不应该再有任何等待。当然，在实现的时候还是调用了等待的API，只是把超时事件设置成0就可以达到这个效果。
+	* 第一种情况，查找到了一个最近的timer事件，它要求在未来某一个时刻触发。那么，这一步只需要把这个未来时刻转换成阻塞超时时间即可。
+	* 第二种情况，查找到了一个最近的timer事件，但它要求的时刻已经过去了。那么，这时候它应该立刻被触发，而不应该再有任何等待。当然，在实现的时候还是调用了等待的API，只是把超时事件设置成0就可以达到这个效果。
 	* 第三种情况，没有查找到任何注册的timer事件。那么，这时候应该把超时时间设置成无限长。接下来只有I/O事件发生才能唤醒。
-* **判断有I/O事件发生还是超时**。这里是程序从上一步（可能的）阻塞状态中恢复后执行的判断逻辑。如果是I/O事件发生了，那么先执行I/O事件回调，然后根据需要把到期的timer事件的回调也执行掉；如果是超时先发生了，那么表示只有timer事件需要触发（没有I/O事件发生），那么就直接把到期的timer事件的回调执行掉。
+* **判断有I/O事件发生还是超时**。这里是程序从上一步（可能的）阻塞状态中恢复后执行的判断逻辑。如果是I/O事件发生了，那么先执行I/O事件回调，然后根据需要把到期的timer事件的回调也执行掉（如果有的话）；如果是超时先发生了，那么表示只有timer事件需要触发（没有I/O事件发生），那么就直接把到期的timer事件的回调执行掉。
 * **执行I/O事件回调**。我们前面提到的对于TCP连接的监听和对于Unix domain socket的监听，这两种I/O事件的回调函数`acceptTcpHandler`和`acceptUnixHandler`，就是在这一步被调用的。
 * **执行timer事件回调**。我们前面提到的周期性的回调函数`serverCron`，就是在这一步被调用的。一般情况下，一个timer事件被处理后，它就会被从队列中删除，不会再次执行了。但`serverCron`却是被周期性调用的，这是怎么回事呢？这是因为Redis对于timer事件回调的处理设计了一个小机制：timer事件的回调函数可以返回一个需要下次执行的毫秒数。如果返回值是正常的正值，那么Redis就不会把这个timer事件从事件循环的队列中删除，这样它后面还有机会再次执行。例如，按照默认的设置，`serverCron`返回值是100，因此它每隔100毫秒会执行一次（当然这个执行频率可以在redis.conf中通过`hz`变量来修改）。
 
@@ -77,28 +77,28 @@ Redis客户端向服务器发送命令，其实可以细分为两个过程：
 
 上述第一个过程，「连接建立」，对应到服务端的代码，就是会走到`acceptTcpHandler`或`acceptUnixHandler`这两个回调函数中去。换句话说，Redis服务器每收到一个新的连接请求，就会由事件循环触发一个I/O事件，从而执行到`acceptTcpHandler`或`acceptUnixHandler`回调函数的代码。
 
-接下来，从socket编程的角度，服务器应该调用[`accept`](https://man.cx/accept(2)){:target="_blank"}系统API[7]来接受连接请求，并为新的连接创建出一个socket。这个新的socket也就对应着一个新的文件描述符。为了在新的连接上能接收到客户端发来的命令，接下来必须在事件循环中为这个新的文件描述注册一个I/O事件回调。这个过程的流程图如下：
+接下来，从socket编程的角度，服务器应该调用[`accept`](https://man.cx/accept(2)){:target="_blank"}系统API[7]来接受连接请求，并为新的连接创建出一个socket。这个新的socket也就对应着一个新的文件描述符。为了在新的连接上能接收到客户端发来的命令，接下来必须在事件循环中为这个新的文件描述符注册一个I/O事件回调。这个过程的流程图如下：
 
 [<img src="/assets/photos_redis/how-to-start/accept_handler_flow_chart.png" style="width:260px" alt="连接建立过程的流程图" />](/assets/photos_redis/how-to-start/accept_handler_flow_chart.png)
 
-从上面流程图可以看出，新的连接注册了一个I/O事件回调，即`readQueryFromClient`。也就是说，对应前面讲的第二个过程，「命令发送、执行和响应」，当服务器收到命令的时候，就会执行到`readQueryFromClient`回调，这个函数的实现就是在处理命令的「执行和响应」了。因此，下面我们看一下这个函数的执行流程图：
+从上面流程图可以看出，新的连接注册了一个I/O事件回调，即`readQueryFromClient`。也就是说，对应前面讲的第二个过程，「命令发送、执行和响应」，当服务器收到命令数据的时候，也会由事件循环触发一个I/O事件，执行到`readQueryFromClient`回调。这个函数的实现就是在处理命令的「执行和响应」了。因此，下面我们看一下这个函数的执行流程图：
 
 [<img src="/assets/photos_redis/how-to-start/process_query_flow_chart.png" style="width:300px" alt="命令接收和执行的流程图" />](/assets/photos_redis/how-to-start/process_query_flow_chart.png)
 
 上述流程图有几个需要注意的点：
-* 从socket中读入数据，是按照流的方式。也就是说，站在应用层的角度，从底层网络层读入的数据，是由一个个字节组成的字节流。而我们需要从这些字节流中解析出完整的Redis命令，才能知道接下来如何处理。但由于网络传输的特点，我们并不能控制一次读入多少个字节。实际上，我们是调用[`read`](https://man.cx/read(2)){:target="_blank"}系统API[8]来读入数据的。虽然调用`read`时我们可以指定期望读取的字节数，但它并不会保证一定能返回期望长度的数据。比如我们想读100个字节，但可能只能读到80个字节，剩下的20个字节可能还在网络传输中没有到达。这种情况给接收Redis命令的过程造成了很大的麻烦：首先，可能我们读到的数据还不够一个完整的命令，这时我们应该继续等待更多的数据到达。其次，我们可能一次性收到了大量的数据，里面包含不止一个命令，这时我们必须把里面包含的所有命令都解析出来，而且要正确解析到最后一个完整命令的边界。如果最后一个完整命令后面还有多余的数据，那么这些数据应该留在下次有更多数据到达时再处理。这个复杂的过程一般称为「粘包」。
-* 「粘包」处理的第一个表现，就是当尝试解析出一个完整的命令时，如果解析失败了，那么上面的流程就直接退出了。接下来，如果有更多数据到达，事件循环会触发I/O事件回调，重新进入上面的流程继续处理。
+* 从socket中读入数据，是按照流的方式。也就是说，站在应用层的角度，从底层网络层读入的数据，是由一个个字节组成的字节流。而我们需要从这些字节流中解析出完整的Redis命令，才能知道接下来如何处理。但由于网络传输的特点，我们并不能控制一次读入多少个字节。实际上，即使服务器只是收到一个Redis命令的部分数据（哪怕只有一个字节），也有可能触发一次I/O事件回调。这时我们是调用[`read`](https://man.cx/read(2)){:target="_blank"}系统API[8]来读入数据的。虽然调用`read`时我们可以指定期望读取的字节数，但它并不会保证一定能返回期望长度的数据。比如我们想读100个字节，但可能只能读到80个字节，剩下的20个字节可能还在网络传输中没有到达。这种情况给接收Redis命令的过程造成了很大的麻烦：首先，可能我们读到的数据还不够一个完整的命令，这时我们应该继续等待更多的数据到达。其次，我们可能一次性收到了大量的数据，里面包含不止一个命令，这时我们必须把里面包含的所有命令都解析出来，而且要正确解析到最后一个完整命令的边界。如果最后一个完整命令后面还有多余的数据，那么这些数据应该留在下次有更多数据到达时再处理。这个复杂的过程一般称为「粘包」。
+* 「粘包」处理的第一个表现，就是当尝试解析出一个完整的命令时，如果解析失败了，那么上面的流程就直接退出了。接下来，如果有更多数据到达，事件循环会再次触发I/O事件回调，重新进入上面的流程继续处理。
 * 「粘包」处理的第二个表现，是上面流程图中的大循环。只要暂存输入数据的query buffer中还有数据可以处理，那么就不停地去尝试解析完整命令，直到把里面所有的完整命令都处理完，才退出循环。
 * 查命令表那一步，就是查找本文前面提到的由`populateCommandTable`初始化的命令表，这个命令表存储在server.c的全局变量`redisCommandTable`当中。命令表中存有各个Redis命令的执行入口。
-* 对于命令的执行结果，在上面的流程图中只是最后存到了一个输出buffer中，并没有真正输出给客户端。输出给客户端的过程不在这个流程当中，而是由另外一个同样是事件循环驱动的过程来完成。这个过程涉及很多细节，我们在这里先略过，留在后面第四部分再来讨论。
+* 对于命令的执行结果，在上面的流程图中只是最后存到了一个输出buffer中，并没有真正输出给客户端。输出给客户端的过程不在这个流程当中，而是由另外一个同样是由事件循环驱动的过程来完成。这个过程涉及很多细节，我们在这里先略过，留在后面第四部分再来讨论。
 
 ### 事件机制介绍
 
 在本文第一部分，我们提到过，我们必须有一种机制能够同时等待I/O和timer这两种事件的发生。这一机制就是系统底层的I/O多路复用机制(I/O multiplexing)。但是，在不同的系统上，存在多种不同的I/O多路复用机制。因此，为了方便上层程序实现，Redis实现了一个简单的事件驱动程序库，即ae.c的代码，它屏蔽了系统底层在事件处理上的差异，并实现了我们前面一直在讨论的事件循环。
 
 在Redis的事件库的实现中，目前它底层支持4种I/O多路复用机制：
-* **[`select`](https://man.cx/select(2)){:target="_blank"}系统调用**[9]。这应该是最早出现的一种I/O多路复用机制，于1983年在4.2BSD Unix中被首次使用[[10](https://daniel.haxx.se/docs/poll-vs-select.html){:target="_blank"}]。它是[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}规范的一部分。另外，跟`select`类似的还有一个[`poll`](https://man.cx/poll(2)){:target="_blank"}系统调用[11]，它是1986年在SVR3 Unix系统中首次使用的[10]，也遵循[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}规范。只要是遵循POSIX规范的操作系统，它就能支持`select`和`poll`机制，因此在目前我们常见的系统中这两种I/O事件机制一般都是支持的。
-* **[epoll机制](https://man.cx/epoll){:target="_blank"}**[1]。epoll是比`select`更新的一种I/O多路复用机制，最早出现在Linux内核的2.5.44版本中[12]。它被设计出来是为了代替旧的`select`和`poll`，提供一种更高效的I/O机制。注意，epoll是Linux系统所特有的，也不属于POSIX规范。
+* **[`select`](https://man.cx/select(2)){:target="_blank"}系统调用**[9]。这应该是最早出现的一种I/O多路复用机制了，于1983年在4.2BSD Unix中被首次使用[[10](https://daniel.haxx.se/docs/poll-vs-select.html){:target="_blank"}]。它是[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}规范的一部分。另外，跟`select`类似的还有一个[`poll`](https://man.cx/poll(2)){:target="_blank"}系统调用[11]，它是1986年在SVR3 Unix系统中首次使用的[10]，也遵循[POSIX](http://pubs.opengroup.org/onlinepubs/9699919799/nframe.html){:target="_blank"}规范。只要是遵循POSIX规范的操作系统，它就能支持`select`和`poll`机制，因此在目前我们常见的系统中这两种I/O事件机制一般都是支持的。
+* **[epoll机制](https://man.cx/epoll){:target="_blank"}**[1]。epoll是比`select`更新的一种I/O多路复用机制，最早出现在Linux内核的2.5.44版本中[12]。它被设计出来是为了代替旧的`select`和`poll`，提供一种更高效的I/O机制。注意，epoll是Linux系统所特有的，它不属于POSIX规范。
 * **[`kqueue`](https://man.cx/kqueue){:target="_blank"}机制**[13]。`kqueue`最早是2000年在FreeBSD 4.1上被设计出来的，后来也支持NetBSD、OpenBSD、DragonflyBSD和macOS系统[14]。它和Linux系统上的epoll是类似的。
 * **event ports**。这是在[illumos](https://en.wikipedia.org/wiki/Illumos){:target="_blank"}系统[15]上特有的一种I/O事件机制。
 
@@ -115,7 +115,7 @@ Redis客户端向服务器发送命令，其实可以细分为两个过程：
 * 首先，向事件循环中注册I/O事件回调的时候，需要指定哪个回调函数注册到哪个事件上（事件用文件描述符来表示）。事件和回调函数的对应关系，由Redis上层封装的事件驱动程序库来维护。具体参见函数`aeCreateFileEvent`的代码。
 * 类似地，向事件循环中注册timer事件回调的时候，需要指定多长时间之后执行哪个回调函数。这里需要记录哪个回调函数预期在哪个时刻被调用，这也是由Redis上层封装的事件驱动程序库来维护的。具体参见函数`aeCreateTimeEvent`的代码。
 * 底层的各种事件机制都会提供一个等待事件的操作，比如epoll提供的`epoll_wait` API。这个等待操作一般可以指定预期等待的事件列表（事件用文件描述符来表示），并同时可以指定一个超时时间（即最大等待多长时间）。在事件循环中需要等待事件发生的时候，就调用这个等待操作，传入之前注册过的所有I/O事件，并把最近的timer事件所对应的时刻转换成这里需要的超时时间。具体参见函数`aeProcessEvents`的代码。
-* 从上一步的等待操作中唤醒，有两种情况：如果是I/O事件发生了，那么就根据触发的事件查到I/O回调函数，进行调用；如果是超时了，那么检查所有注册过的timer事件，对于预期调用时刻超过当前时间的回调函数进行调用。
+* 从上一步的等待操作中唤醒，有两种情况：如果是I/O事件发生了，那么就根据触发的事件查到I/O回调函数，进行调用；如果是超时了，那么检查所有注册过的timer事件，对于预期调用时刻超过当前时间的回调函数都进行调用。
 
 最后，关于事件机制，还有一些信息值得关注：业界已经有一些比较成熟的开源的事件库了，典型的比如[libevent](http://libevent.org/){:target="_blank"}[20]和[libev](https://github.com/enki/libev){:target="_blank"}[21]。一般来说，这些开源库屏蔽了非常复杂的底层系统细节，并对不同的系统版本实现做了兼容，是非常有价值的。那为什么Redis的作者还是自己实现了一套呢？在Google Group的一个帖子上，Redis的作者给出了一些原因。帖子地址如下：
 * <https://groups.google.com/group/redis-db/browse_thread/thread/b52814e9ef15b8d0/>{:target="_blank"}
@@ -138,7 +138,8 @@ Redis客户端向服务器发送命令，其实可以细分为两个过程：
 [<img src="/assets/photos_redis/how-to-start/method_call_hierarchy.png" style="width:700px" alt="关键路径代码调用关系图" />](/assets/photos_redis/how-to-start/method_call_hierarchy.png)
 
 上图中添加了部分注释，应该可以很清楚地和本文前面介绍过的一些流程对应上。另外，图中一些可能需要注意的细节，如下列出：
-* 初始化过程增加了`aeSetBeforeSleepProc`和`aeSetAfterSleepProc`，注册了两个回调函数。一个用于在事件循环每轮开始时调用，另一个会在每轮事件循环的阻塞等待后（即`aeApiPoll`返回后）调用。图中下面第5个调用流程的入口`beforeSleep`，就是由这里的`aeSetBeforeSleepProc`来注册到事件循环中的。
+* 初始化过程增加了`aeSetBeforeSleepProc`和`aeSetAfterSleepProc`，注册了两个回调函数，这在本文前面没有提到过。一个用于在事件循环每轮开始时调用，另一个会在每轮事件循环的阻塞等待后（即`aeApiPoll`返回后）调用。图中下面第5个调用流程的入口`beforeSleep`，就是由这里的`aeSetBeforeSleepProc`来注册到事件循环中的。
+* 前文提到的`serverCron`周期性地执行，就是指的在`processTimeEvents`这个调用分支中调用的`timeProc`这个函数。
 * 在数据接收处理的流程`readQueryFromClient`中，通过`lookupCommand`来查询Redis命令表，这个命令表也就是前面初始化时由`populateCommandTable`初始化的`redisCommandTable`全局结构。查找命令入口后，调用server.c的`call`函数来执行命令。图中`call`函数的下一层，就是调用各个命令的入口函数（图中只列出了几个例子）。以`get`命令的入口函数`getCommand`为例，它执行完的执行结果，最终会调用`addReply`存入到输出buffer中，即`client`结构的`buf`或`reply`字段中（根据执行结果的大小不同）。需要注意的是，就像前面「Redis命令请求的处理流程」最后讨论的一样，这里只是把执行结果存到了一个输出buffer中，并没有真正输出给客户端。真正把响应结果发送给客户端的执行逻辑，在后面的`beforeSleep`和`sendReplyToClient`流程中。
 * 最后将命令执行结果发送给客户端的过程，由`beforeSleep`来触发。它检查输出buffe中有没有需要发送给客户端的执行结果数据，如果有的话，会调用`writeToClient`尝试进行发送。如果一次性没有把数据发送完毕，那么还需要再向事件循环中注册一个写I/O事件回调`sendReplyToClient`，在恰当的时机再次调用`writeToClient`来尝试发送。如果还是有剩余数据没有发送完毕，那么后面会由`beforeSleep`回调来再次触发这个流程。
 
@@ -154,6 +155,8 @@ Redis客户端向服务器发送命令，其实可以细分为两个过程：
 抛开本文的很多细节，也许你至少可以记住Redis的命令表这个全局变量：`redisCommandTable`，它就定义在server.c源文件的开头。这里面记录了每一种Redis命令的执行入口，你也可以从这里出发直接去研究Redis内部各个数据结构和相关操作的实现，就像[Redis内部数据结构详解](https://mp.weixin.qq.com/s/3TU9qxHJyxHJgVDaYXoluA)系列文章所做的一样。
 
 祝源码阅读愉快！
+
+（完）
 
 ##### 参考文献：
 * [1] epoll − I/O event notification facility, <https://man.cx/epoll>{:target="_blank"}
@@ -177,3 +180,14 @@ Redis客户端向服务器发送命令，其实可以细分为两个过程：
 * [19] The Implementation of epoll, <https://idndx.com/2014/09/01/the-implementation-of-epoll-1/>{:target="_blank"}
 * [20] libevent, <http://libevent.org/>{:target="_blank"}
 * [21] libev, <https://github.com/enki/libev>{:target="_blank"}
+
+**其它精选文章**：
+
+* [基于Redis的分布式锁到底安全吗（下）](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261521&idx=1&sn=7bbb80c8fe4f9dff7cd6a8883cc8fc0a&chksm=84479e08b330171e89732ec1460258a85afe73299c263fcc7df3c77cbeac0573ad7211902649#rd)
+* [漫谈业务与平台](https://mp.weixin.qq.com/s/gPE2XTqTHaN8Bg7NnfOoBw)
+* [漫谈分布式系统、拜占庭将军问题与区块链](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261626&idx=1&sn=6b32cc7a7a62bee303a8d1c4952d9031&chksm=844791e3b33018f595efabf6edbaa257dc6c5f7fe705e417b6fb7ac81cd94e48d384a694640f#rd)
+* [光年之外的世界](https://mp.weixin.qq.com/s/zUgMSqI8QhhrQ_sy_zhzKg)
+* [技术的正宗与野路子](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261357&idx=1&sn=ebb11a1623e00ca8e6ad55c9ad6b2547#rd)
+* [三个字节的历险](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261541&idx=1&sn=2f1ea200389d82e7340a5b4103968d7f&chksm=84479e3cb330172a6b2285d4199822143ad05ef8e8c878b98d4ee4f857664c3d15f54e0aab50#rd)
+* [做技术的五比一原则](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&amp;mid=2657261555&amp;idx=1&amp;sn=3662a2635ecf6f67185abfd697b1057c&amp;chksm=84479e2ab330173cebe16826942b034daec79ded13ee4c03003d7bef262d4969ef0ffb1a0cfb#rd)
+* [知识的三个层次](https://mp.weixin.qq.com/s?__biz=MzA4NTg1MjM0Mg==&mid=2657261491&idx=1&sn=cff9bcc4d4cc8c5e642309f7ac1dd5b3&chksm=84479e6ab330177c51bbf8178edc0a6f0a1d56bbeb997ab1cf07d5489336aa59748dea1b3bbc#rd)
