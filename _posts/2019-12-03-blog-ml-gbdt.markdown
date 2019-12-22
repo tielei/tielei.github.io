@@ -58,7 +58,30 @@ GBDT相对来说是一个比较复杂的模型，它的理论构成如下图所�
 
 ### 优化理论
 
-Gradient Descent翻译过来可以称为「梯度下降」，是解决数值优化 (Numerical Optimization) 问题的重要方法。
+根据本文开头设定的目标，我们首先要解释清楚的是梯度下降 (Gradient Descent) 这个概念。而要解释清楚这个概念，我们首先要从优化问题 (Optimization Problem) 讲起。
+
+无论是在自然界和人类社会中，还是在人类建造的系统中，优化都是一种普遍存在的行为。下面是一些例子：
+* 在一个隔绝的系统中，大量分子相互作用，最终会达到所有电子总势能最小化的状态[1]。物理系统总是趋向于向着能量最小的状态演化，这是自然界的优化过程。
+* 投资者不断优化投资组合，以追求收益的最大化。
+* 一个城域交通系统，追求的是整个城市交通输送效率的最大化。
+* 广告系统，追求的是整个系统对于广告投放的ROI (收入减去成本) 的最大化。
+
+所有这些例子，都可以抽象成数学上的优化问题来描述。按照维基百科的解释，下面这几个概念是等同的：
+* 优化 (Optimization)
+* 数值优化 (Numerical Optimization)
+* 数学优化 (Mathematical Optimization) 
+* 数学规划 (Mathematical Programming) 
+
+它们都可以在数学上表示从备选集合中选出最佳元素的过程[2]。为避免混乱，我们接下来统一使用「数值优化」这个词汇。
+
+举一个简单的例子，假设我们有一个目标函数：
+
+*f(x) = 2x<sup>2</sup> + 8x - 11*
+
+现在要求使*f(x)*最小，那么*x*取值应该是多少？这就是一个数值优化的例子。如果用公式来表达这个优化目标，应该表示成：
+
+[<img src="/assets/photos_gbdt/equation_f_min.png" style="width:70px" alt="min f(x)公式" />](/assets/photos_gbdt/equation_f_min.png)
+
 
 ### 机器学习的概率表达
 
@@ -70,8 +93,8 @@ Gradient Descent翻译过来可以称为「梯度下降」，是解决数值优�
 
 ##### 参考文献：
 
-* [1] <https://en.wikipedia.org/wiki/Benjamin_Rush>{:target="_blank"}
-* [2] <https://en.wikipedia.org/wiki/Limey>{:target="_blank"}
+* [1] Jorge Nocedal, Stephen J. Wright, "Numerical Optimization", Second Edition.
+* [2] <https://en.wikipedia.org/wiki/Mathematical_optimization>{:target="_blank"}
 
 **其它精选文章**：
 
