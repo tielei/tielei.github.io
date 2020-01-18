@@ -32,6 +32,8 @@ published: true
 * 一个城域交通系统，追求的是整个城市交通输送效率的最大化。
 * 线上广告系统，追求的是整个系统对于广告投放的ROI (收入减去成本) 的最大化。
 
+在我们的日常工作中，也经常会碰到「优化」问题。比如，在项目中如何做到投入资源最少，却取得最大的收益？一个推荐系统，如何让转化率最大化？一个用户流量分发系统，如何让触达用户的效率最高？
+
 所有这些例子，都可以抽象成数学上的优化问题来描述。按照维基百科的解释，下面这几个概念是等同的：
 * 优化 (Optimization)
 * 数值优化 (Numerical Optimization)
@@ -46,17 +48,17 @@ published: true
 
 现在要求使 *f(x)* 最小，那么*x*取值应该是多少？这就是一个优化的例子。如果用公式来表达这个优化目标，应该表示成：
 
-[<img src="/assets/photos_gbdt/equation_f_min.png" style="height:32px" alt="min f(x)公式" />](/assets/photos_gbdt/equation_f_min.png) 或 [<img src="/assets/photos_gbdt/equation2_f_min.png" style="height:32px" alt="min f(x)公式" />](/assets/photos_gbdt/equation2_f_min.png) 
+[<img src="/assets/photos_ml/optimization/equation_f_min.png" style="height:32px" alt="min f(x)公式" />](/assets/photos_ml/optimization/equation_f_min.png) 或 [<img src="/assets/photos_ml/optimization/equation2_f_min.png" style="height:32px" alt="min f(x)公式" />](/assets/photos_ml/optimization/equation2_f_min.png) 
 
 上面这个式子表示，*x*是自变量，取值可以在整个实数域*R*上变化。而问题的目标是：找到使得 *f(x)* 达到最小值的*x*的值是多少。
 
 假设 *x<sup>\*</sup>* 是该优化问题的解，那么可以表达成：
 
-[<img src="/assets/photos_gbdt/equation_f_argmin.png" style="height:32px" alt="argmin f(x)公式" />](/assets/photos_gbdt/equation_f_argmin.png)
+[<img src="/assets/photos_ml/optimization/equation_f_argmin.png" style="height:32px" alt="argmin f(x)公式" />](/assets/photos_ml/optimization/equation_f_argmin.png)
 
 在这个例子中，*f(x)*的表达式比较简单，我们根据中学的数学知识就知道它是一个开口向上的抛物线。如下图所示：
 
-[<img src="/assets/photos_gbdt/fx_parabola_plot.png" style="width:400px" alt="f(x)抛物线图像" />](/assets/photos_gbdt/fx_parabola_plot.png)
+[<img src="/assets/photos_ml/optimization/fx_parabola_plot.png" style="width:400px" alt="f(x)抛物线图像" />](/assets/photos_ml/optimization/fx_parabola_plot.png)
 
 从上面的函数图像很容易看出来，使得 *f(x)* 取最小值的点就是图中的红点，即：
 
@@ -64,13 +66,13 @@ published: true
 
 那么，这个解是通过怎样的计算过程得到的呢？我们知道，一个连续函数在极值点的导数为零，可以利用这个特性来求解：
 
-[<img src="/assets/photos_gbdt/x_solution_evaluation.png" style="width:200px" alt="x求解过程" />](/assets/photos_gbdt/x_solution_evaluation.png)
+[<img src="/assets/photos_ml/optimization/x_solution_evaluation.png" style="width:200px" alt="x求解过程" />](/assets/photos_ml/optimization/x_solution_evaluation.png)
 
 由于这个目标函数比较简单，所以我们很容易通过计算和推导得到了问题的解。这种通过严格的数学推导能够得到的解，可以称为解析解 (analytical solution)或闭式解 (closed-form solution)。
 
 前面的抛物线只是一个例子。优化问题的一般形式[1]，可以用下面的公式表达：
 
-[<img src="/assets/photos_gbdt/equation_numeric_optimization.png" style="width:260px" alt="优化问题表达式" />](/assets/photos_gbdt/equation_numeric_optimization.png)
+[<img src="/assets/photos_ml/optimization/equation_numeric_optimization.png" style="width:260px" alt="优化问题表达式" />](/assets/photos_ml/optimization/equation_numeric_optimization.png)
 
 这个数学表达式的含义是：
 * ***x***是*n*维向量{*x*<sub>1</sub>, *x*<sub>2</sub>, ..., *x*<sub>*n*</sub>}<sup>T</sup>，表示自变量；
@@ -93,23 +95,23 @@ published: true
 
 在迭代算法中，有一个关键的问题需要解决：在从第*k*步向第*k*+1步迭代的时候，如何决定往哪个方向移动？显然，根据前面我们对优化问题的定义，应该往目标函数变小的方向移动，即：
 
-[<img src="/assets/photos_gbdt/iterate_fx_compare.png" style="height:32px" alt="f(x)迭代比较" />](/assets/photos_gbdt/iterate_fx_compare.png)
+[<img src="/assets/photos_ml/optimization/iterate_fx_compare.png" style="height:32px" alt="f(x)迭代比较" />](/assets/photos_ml/optimization/iterate_fx_compare.png)
 
 回到前面抛物线的目标函数，这时自变量*x*退化到一维（标量）。假设根据迭代算法我们当前走到了第*k*步，如下图：
 
-[<img src="/assets/photos_gbdt/fx_parabola_tangent_plot2.png" style="width:400px" alt="f(x)抛物线切线迭代图像" />](/assets/photos_gbdt/fx_parabola_tangent_plot2.png)
+[<img src="/assets/photos_ml/optimization/fx_parabola_tangent_plot2.png" style="width:400px" alt="f(x)抛物线切线迭代图像" />](/assets/photos_ml/optimization/fx_parabola_tangent_plot2.png)
 
 图中红色箭头是*x<sub>k</sub>*点的切线方向，绿色箭头则是切线的相反方向。显然，下一步（第*k+1*步）应该沿着切线的相反方向迭代，去寻找*x<sub>k+1</sub>*的位置。这样，就能让目标函数*f(x)*的值越来越小，最终抵达最优解*x<sup>\*</sup>*。
 
 而对于一般的目标函数，自变量***x***是一个*n*维向量，对应一个*n*维空间。由于在多维空间中函数的图像是无法在视觉上体现的，所以我们先考虑***x***是二维向量的情况（也就有两个自变量），这时函数的图像是三维空间中的一个曲面。如下图：
 
-[<img src="/assets/photos_gbdt/valley_with_ball_v2.png" style="width:480px" alt="梯度下降在三维空间的演示" />](/assets/photos_gbdt/valley_with_ball_v2.png)
+[<img src="/assets/photos_ml/optimization/valley_with_ball_v2.png" style="width:480px" alt="梯度下降在三维空间的演示" />](/assets/photos_ml/optimization/valley_with_ball_v2.png)
 
 与前面抛物线图像的情况类似，一次迭代沿着图中绿色箭头的方向进行，就像一个小球在山谷的斜坡上向下滚动，最终到达谷底（最优解）。
 
 前面的两个例子比较形象地展示了迭代的方向。可以看出，迭代应该是向着与最优解不断接近的方向进行。但这个方向的选择在复杂的多维空间中并不容易。比如，在下图的函数图像中，曲面的「地形」比较复杂，每次的迭代方向就不是那么容易选择的了。
 
-[<img src="/assets/photos_gbdt/complex_plot.png" style="width:400px" alt="复杂曲面在三维空间的演示" />](/assets/photos_gbdt/complex_plot.png)
+[<img src="/assets/photos_ml/optimization/complex_plot.png" style="width:400px" alt="复杂曲面在三维空间的演示" />](/assets/photos_ml/optimization/complex_plot.png)
 
 ### 两种迭代策略
 
@@ -122,17 +124,17 @@ published: true
 * trust region (信赖域)。
 
 Line search的策略是每一步迭代都选择一个固定的方向（通过近似计算使得目标函数变小的方向），然后沿着这个方向前进一个合适的步长。而对于前进方向的选择上，又可以细分成不同的方法，下面简要介绍一下：
-* 梯度下降法 (Gradient Descent)。这个就是在本章开头我们原本打算要解释的那个概念（终于讲到它了）。这种方法会选择沿梯度（一阶导数）相反的方向作为下一步迭代的方向，然后沿着这个方向走尽量远的距离，直到目标函数的值不再下降为止。因此，这种方法也可以称为最速下降法 (Steepest Descent)。
+* 梯度下降法 (Gradient Descent)。这个是在机器学习中经常用到的优化方法。这种方法会选择沿梯度（一阶导数）相反的方向作为下一步迭代的方向，然后沿着这个方向走尽量远的距离，直到目标函数的值不再下降为止。因此，这种方法也可以称为最速下降法 (Steepest Descent)。
 * 牛顿法 (Newton method)。在选择迭代方向的时候考虑二阶导数的信息（计算过程依赖Hessian矩阵）。
 * 拟牛顿法 (Quasi-Newton method)。在选择迭代方向的时候通过近似计算避免了直接计算Hessian矩阵。
 
-而trust region这种策略与line search不同，它在每一步迭代时并不会选择固定的前进方向，而是根据当前迭代位置选择一个近似区域。这个近似区域就被称为信赖区域 (trust region)，因为在这个区域内可以做一些与目标函数近似的计算，如果区域太大这种近似就不成立了。trust region这种策略会先固定住信赖区域的大小，然后在这个区域内选择一个使目标函数变小的前进方向（近似计算）；如果发现计算中使用的近似计算与目标函数差距太大了，就调整信赖区域的大小，重新进行计算。
+而trust region这种策略与line search不同，它在每一步迭代时并不会选择固定的前进方向，而是根据当前迭代位置选择一个近似区域。这个近似区域就被称为信赖区域 (trust region)，因为在这个区域内可以做一些与目标函数近似的计算，如果区域太大这种近似就不成立了。trust region这种策略会先固定住信赖区域的大小，然后在这个区域内选择一个使目标函数变小的前进方向和步长（基于近似计算）；如果发现计算中使用的近似计算与目标函数差距太大了，就减小信赖区域的大小，重新进行计算。
 
 总体来讲，由于实际中目标函数都比较复杂，对应多维空间中曲面的「地形」也非常复杂，我们没法直接利用目标函数的全局信息来找到最优解。因此，迭代的时候，我们只能根据当前迭代位置附近的局部信息来做近似计算。这些局部信息可能来自于一阶导数（梯度）或二阶导数（Hessian矩阵），而近似计算则是基于泰勒公式 (Taylor formula)。不管是line search还是trust region，它们都可能使用同样的这些局部信息和近似计算方法。不过在基于近似计算的结果选择迭代方向和步长的时候，line search和trust region采取了两种不同的策略：line search在每一步迭代中固定住前进方向，然后试探合适的步长；而trust region则在每一步迭代中尝试同时选择前进方向和步长大小，而一旦信赖区域大小发生变化，前进方向和步长也都发生变化。
 
-我们用下面的概念图来做一个总结：
+我们用下面的概念图来做一个总结（本文贡献的最有价值的一张图，点击看大图）：
 
-[<img src="/assets/photos_gbdt/concepts_optimization.png" style="width:600px" alt="优化理论概念图" />](/assets/photos_gbdt/concepts_optimization.png)
+[<img src="/assets/photos_ml/optimization/concepts_optimization.png" style="width:600px" alt="优化理论概念图" />](/assets/photos_ml/optimization/concepts_optimization.png)
 
 上图有一个有趣的现象值得注意：越是向左，越是偏理论；越是向右，越是偏实现。左边是数学理论，而右边则是可以在计算机上实现的算法。
 
@@ -140,7 +142,7 @@ Line search的策略是每一步迭代都选择一个固定的方向（通过近
 
 严格来说，优化并不属于机器学习的范畴。它们之间的关联在于：机器学习的模型训练（即模型的求解）会用到优化理论。所以，这里留给我们的一个课题，就是讨论清楚这个关联是怎么来的（也就是本文开头的步骤1，如何把一个机器学习问题转化成一个优化问题）。
 
-把机器学习问题转化成一个优化问题的关键在于，优化的目标怎么表达？由于机器学习的整套理论是基于概率的，因此，机器学习模型求解的优化目标，也是基于概率来表达的。我们下次再讨论机器学习的概率表达问题。
+把机器学习问题转化成一个优化问题的关键在于，优化的目标怎么表达。由于机器学习的整套理论是基于概率的，因此，机器学习模型求解的优化目标，也是基于概率来表达的。我们下次再讨论机器学习的概率表达问题。
 
 （正文完）
 
