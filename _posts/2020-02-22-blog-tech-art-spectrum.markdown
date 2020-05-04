@@ -82,8 +82,8 @@ published: true
 
 **其它精选文章**：
 
+* [在技术和业务中保持平衡](https://mp.weixin.qq.com/s/OUdH5RxiRyvcrFrbLOprjQ)
 * [卓越的人和普通的人到底区别在哪？](https://mp.weixin.qq.com/s/7xXtmQ31ZkaPcFXVej4Yeg)
-* [给普通人看的机器学习(一)：优化理论](https://mp.weixin.qq.com/s/-lJyRREez1ITxomizuhPAw)
 * [漫谈业务与平台](https://mp.weixin.qq.com/s/gPE2XTqTHaN8Bg7NnfOoBw)
 * [漫谈分布式系统、拜占庭将军问题与区块链](https://mp.weixin.qq.com/s/tngWdvoev8SQiyKt1gy5vw)
 * [技术的正宗与野路子](https://mp.weixin.qq.com/s/_Emd5WoQrXJ3oRGxenTl7A)
