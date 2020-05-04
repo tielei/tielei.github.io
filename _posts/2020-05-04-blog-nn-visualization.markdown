@@ -71,13 +71,36 @@ published: true
 
 当然，这个例子非常简单，只是最简单的神经网络结构。但即使是更复杂的神经网络，原理也是类似的，输入样本每经过一层网络的变换处理，都变得比原来更「可分」一些。我们接下来就看一个稍微复杂一点的例子。
 
-### 手写数字识别
+### 手写体数字识别MNIST
 
+现在我们来考虑一下「手写体数字识别」的问题。
 
-### 从低维到高维
+在机器学习的学术界，有一个公开的数据集，称为MNIST[2]。使用神经网络对MNIST的数据进行识别，堪称是神经网络和深度学习领域的「Hello World」。
 
+在MNIST的数据集中，共有70000张手写体数字图片。它们类似下面的样子：
+
+[<img src="/assets/photos_neural_nets/mnist_100_digits.png" style="width:450px" alt="手写体数字示意图" />](/assets/photos_neural_nets/mnist_100_digits.png)
+
+每一张图片都是28像素×28像素的黑白图片，其中每个像素用一个介于[0,255]之间的灰度值表示。
+
+MNIST的数字识别问题，就是给你一张这样的28像素×28像素的图片，用程序区分出它具体是0到9哪一个数字。
+
+对于这个问题，历史上的最佳成绩是99.79%的识别率，方案使用了卷积神经网络(CNN)。我们这里不想让问题复杂化，因此还是采用普通的全连接的神经网络来求解。我们使用的网络结构如下：
+
+[<img src="/assets/photos_nn_visualization/mnist-mlp-128-hidden.png" style="width:600px" alt="MNIST全连接神经网络结构" />](/assets/photos_nn_visualization/mnist-mlp-128-hidden.png)
+
+简单介绍一下数据是怎么输入和输出的。
+然后识别率：
+0.9807999730110168
+
+### 降维
+
+降维打击？
 
 ### 高维数据的可视化
+
+
+### MNIST的可视化
 
 
 ### 小结
@@ -88,6 +111,7 @@ published: true
 ##### 参考文献：
 
 * [1] <https://github.com/antirez/neural-redis>{:target="_blank"}
+* [2] MNIST data set. <http://yann.lecun.com/exdb/mnist/>{:target="_blank"}
 
 
 **其它精选文章**：
