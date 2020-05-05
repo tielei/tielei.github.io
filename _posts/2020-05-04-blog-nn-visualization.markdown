@@ -124,10 +124,22 @@ MNIST的数字识别问题，就是给你一张这样的28像素×28像素的图
 
 上面不管是画作、照片的例子，还是世界平面地图的例子，都是把三维降维到二维。但在机器学习中，我们经常需要把从更高维降维到三维或二维。人们发明了各种各样的降维方法，比如PCA (Principal Component Analysis)，是一种线性降维方法；MDS (Multi-dimension Scaling)、t-SNE (t-Distributed Stochastic Neighbor Embedding)，都是非线性降维方法。
 
-### 基于力学模型的高维可视化方法
+### 基于k近邻图和力学模型的降维可视化方法
 
-这些降维方法各有侧重点，但我们需要重点关注的是：从高维降到低维，原来高维空间中的哪些几何特性被保持住了？只有搞清楚这一点，我们才能通过观看低维的图像，来理解高维的结构。我们可以类比一下前面世界地图的例子：
-* 相邻关系通常会被保持。比如
+前面提到的各种降维方法，做法不同，也各有侧重点。任何一种解释起来，都要花去很大的篇幅，因此本文不一一详述。考虑到我们接下来的目标，是为了对前一节引入的MNIST神经网络进行直观的可视化展示，所以我们这里采取一种更为直接（也易理解）的方法——一种基于k-NNG (k-Nearest Neighborhood Graph，k近邻图)[3]和力学模型(Force-Directed)[4]的降维可视化方法。
+
+这种方法的过程可以如下描述：
+1. 对于高维空间中的节点计算两两之间的距离，为每个节点找到离它最近的k个节点，连接起来建立一条边。这样就创建出了一个由节点和边组成的图数据结构。这个新创建的图有这样的特性：有边直接相连的节点，它们在原高维空间中的位置就是比较接近的；而没有边直接相连的节点，它们在原高维空间中的位置就是比较远的。这个图称为「k近邻图」，也就是k-NNG (k-Nearest Neighborhood Graph)。另外还有一个问题：高维空间中两个节点的距离怎么计算？这其实有很多种计算方法，比较常见的有「欧几里得距离」、「明可夫斯基距离」等。
+2. 将前面一步得到的k近邻图在二维平面中绘制出来。这变成了一个常见的绘图布局的问题，从某种程度上跟电路板的元器件布局有点像。为了让绘制出来的图像清晰易观察，这个绘制过程需要尽量满足一定的条件，比如，边线的交叉应该尽量少；有边相连的节点应该尽可能离得近一些；节点之间不能离得太近（聚在一起），应该尽量均匀散步在整个坐标系平面上。为了达到这样的要求，我们采用了Fruchterman和Reingold发明的Force-Directed Graph Drawing这种算法。它模拟了物理世界的力学原理，如下图所示：
+
+[<img src="/assets/photos_nn_visualization/spring-layout.png" style="width:400px" alt="Fruchterman-Reingold绘图算法" />](/assets/photos_nn_visualization/spring-layout.png)
+
+* 想象左上角的图，把边换成弹簧，把节点换成带电小球；
+* 弹簧会倾向于把相邻节点（即有边相连的节点）固定在一个自然长度（对应原高维空间中的距离），不能太远也不能太近；
+* 所有「带电小球」都互相保持斥力，让不相邻的节点互相远离，并促使所有节点尽量散布整个画面；
+* 放开手，让各个节点在弹簧和斥力的作用下自由移动，最后达到总体能量最小的状态，这时就得到了左下角那个更好的节点布局。
+
+对于这种方法，我们需要重点关注的是：从高维降到低维，原来高维空间中的哪些几何特性被保持住了？从前面绘制过程的描述容易看出：在原高维空间中距离比较近的节点，在最后绘制的二维图像中，也会在弹簧拉力的作用下离得比较近。只有搞清楚这一点，我们才能通过观看低维的图像，来理解高维的结构。
 
 ### MNIST的可视化
 
@@ -141,6 +153,8 @@ MNIST的数字识别问题，就是给你一张这样的28像素×28像素的图
 
 * [1] <https://github.com/antirez/neural-redis>{:target="_blank"}
 * [2] MNIST data set. <http://yann.lecun.com/exdb/mnist/>{:target="_blank"}
+* [3] Computes the (weighted) graph of k-Neighbors. <https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.kneighbors_graph.html>{:target="_blank"}
+* [4] Fruchterman-Reingold force-directed algorithm. <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.spring_layout.html#networkx.drawing.layout.spring_layout>{:target="_blank"}
 
 
 **其它精选文章**：
