@@ -167,18 +167,45 @@ published: true
 
 ### 最终一致性和它的特殊性
 
-safety & liveness
+我们在[上一篇文章](https://mp.weixin.qq.com/s/qnvl_msvw0XL7hFezo2F4w)中提到过，CAP定理[6]中的C，指的就是线性一致性 (linearizability)。它也经常被称为「强一致性」。
 
+根据CAP定理，当存在网络分区的时候，我们必须在可用性 (availability) 和强一致性之间进行取舍。
+
+另外，即使在没有网络分区存在情况下，我们也必须在延迟 (latency) 和强一致性之间进行取舍[7]。这是因为，系统维持强一致性是有成本的。想要维持越强的一致性，就需要在副本节点之间做更多的通信和协调工作，因此会降低操作的总延迟，进而降低整个系统的性能。
+
+从20世纪90年代中期开始，互联网开始蓬勃发展，系统的规模也变得越来越大。人们设计大型分布式系统的指导思想，也逐步开始更倾向于系统的高可用性和高性能。取舍的结果就是，降低系统提供的一致性保障。这其中非常重要的一条思路就是最终一致性[2]。
+
+最终一致性的设计思路，不再试图提供单一系统视图 (SSI)，即不再试图让系统“表现得像只有一个副本”一样。它允许读到旧版本的数据。最终一致性的原始出处是论文[2]，作者在论文中给出的最终一致性的定义如下：
+
+> Eventual consistency. This is a specific form of weak consistency; the storage system guarantees that if no new updates are made to the object, eventually all accesses will return the last updated value.  
+> (译文：最终一致性是弱一致性的一种特殊形式；存储系统保证，如果对象没有新的修改操作，那么所有的访问最终都会返回最新写入的值。)
+
+我们发现，虽然最终一致性和本文前面讨论的线性一致性或顺序一致性在命名上非常相似，但它的定义却与后两者存在非常大的差别。深层的原因在于，它们其实属于不同类别的系统属性 (property)。线性一致性和顺序一致性属于*safety property*（安全性）；而最终一致性属于*liveness property*（活性）[8]。
+
+一个并发程序或者一个分布式系统，它们的执行所展现出来的系统属性，可以分为两大类：
+* ***safety***：它表示「坏事」永远不会发生。比如，一个系统如果遵守线性一致性或顺序一致性，那么就永远不会出现违反三个（对于顺序一致性来说是两个）条件的执行过程。而一旦系统出现问题，*safety*被违反了，我们也能明确指出是在哪个时间点上出现意外的。
+* ***liveness***：它表示「好事」最终会发生。这种属性听起来会比较神奇：在任何一个时间点，你都无法判定*liveness*被违反了。因为，即使你期望的「好事」还没有发生，也不代表它未来不会发生。就像最终一致性一样，即使当前系统处于不一致的状态，也不代表未来系统就不会达到一致的状态。而只要系统存在在未来某个时刻达到一致状态（读到最新写入的值）的可能性，最终一致性就没有被违反。另外，可用性 (availability) 也属于*liveness*属性。
+
+由此可见，我们在前一小节之所以能够将线性一致性或顺序一致性放在一起讨论和比较，是因为它们都属于*safety*属性。而最终一致性属于*liveness*属性，跟这两者存在本质的区别。实际上，最终一致性有点名不副实，它更好的名字可能是收敛性 (*convergence*)，表示所有副本最终都会收敛到相同的值[9]。
+
+通常来说，只有当*safety*和*liveness*这两种属性被同时考虑时，一个系统才能提供有意义的系统保证[1]。而当系统设计者遵循最终一致性的设计思路时，相当于放弃了所有的*safety*属性。这意味着，对于系统使用者来说，你必须针对数据不一致的可能性做好补偿措施 (*compensation*)。这也是最终一致性系统难用的地方。但不管怎么说，最终一致性仍然被认为是系统提供数据一致性的最低要求[1]。
 
 ### 一致性的强弱关系
 
-从强到弱发展趋势、原因分析
-是有成本的 。 不断降低consistency，nosql
+在本文开头，我们提到过，通常人们把线性一致性称为「强一致性」，把最终一致性称为「弱一致性」。但对于指代特定的一种一致性模型来说，「强一致性」和「弱一致性」都不是一个好名字。因为强和弱，是个相对的概念。
+
+根据本文前面的讨论，从线性一致性，到顺序一致性，再到最终一致性，一致性的强度依次减弱。但是，一致性模型的强弱关系，其实是有更严格的定义的：
+* 当且仅当一个一致性模型所能接受的执行过程，都能被另一个一致性模型所接受时（前者的集合是后者集合的子集），我们就说前者是比后者「更强」(stronger) 的一致性模型。
+
+按照这个更严格的强弱关系定义，线性一致性是比顺序一致性更强的一致性模型。这是因为，线性一致性比顺序一致性多了一个条件III，所以凡是满足线性一致性的执行过程，肯定也满足顺序一致性。
+
+我们仔细分析一下也能知道，一致性模型的强弱关系定义，是基于*safety*属性定义的。所以，将线性一致性或顺序一致性与最终一致性比较强弱，这并不是一个严格的做法。实际上，就像我们前一小节所讨论的，最终一致性在*safety*方面提供的保证为零，它是属于*liveness*的概念。一个系统可以在提供最终一致性的同时，也提供另外一种更强一点的一致性（比如因果一致性）。
 
 ### 小结
 
-依然问题比解法重要
+就如同我在之前另外一篇文章《[漫谈分布式系统、拜占庭将军问题与区块链](https://mp.weixin.qq.com/s/tngWdvoev8SQiyKt1gy5vw)》中所指出的，**理解问题本身比知道问题的答案要重要的多**。本文中，我们辨析了线性一致性、顺序一致性、最终一致性这些概念，以及他们的关系和区别。由此我们了解到了分布式系统的一些核心问题，但我们并未讨论怎么解决这些问题。比如，采用什么算法才能提供线性一致性；面对最终一致性的系统，应该怎样编程，包括怎样处理边界情况，等等。相对于理解问题本身而言，这些反而都是细节。
 
+在这个系列的下一篇文章中，我们将依然遵循这样的思路，具体解析因果一致性，以及分布式系统更深层的事件排序问题。
 
 （正文完）
 
@@ -189,6 +216,11 @@ safety & liveness
 * [3] Leslie Lamport, "How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Progranm", 1979.
 * [4] Mustaque Ahamad, Gil Neiger, James E. Burns, et al, "Causal Memory: Definitions, Implementation and Programming", 1994.
 * [5] Maurice P. Herlihy, Jeannette M. Wing, "Linearizability: A Correctness Condition for Concurrent Objects", 1990.
+* [6] Seth Gilbert, Nancy Lynch, "Brewer’s Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web", 2002.
+* [7] Peter Bailis, Ali Ghodsi, et al, "Bolt-on Causal Consistency", 2013.
+* [8] Bowen Alpern, Fred B. Schneider, "Defining Liveness", 1985.
+* [9] Martin Kleppmann,《Designing Data-Intensive Applications》, 2017.
+* [10] Prince Mahajan, Lorenzo Alvisi, Mike Dahlin, "Consistency, Availability, and Convergence", 2011.
 
 
 **其它精选文章**：
