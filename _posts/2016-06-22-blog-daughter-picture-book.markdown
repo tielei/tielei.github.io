@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "女儿和她的图画书"
 date: 2016-06-22 23:30:00 +0800
 published: true

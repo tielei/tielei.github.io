@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "ml"
 title: "深度学习、信息论与统计学"
 date: 2017-01-06 10:00:00 +0800
 published: true

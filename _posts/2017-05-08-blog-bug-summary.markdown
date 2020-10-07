@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "那些让人睡不着觉的bug，你有没有遭遇过？"
 date: 2017-05-08 00:00:01 +0800
 published: true

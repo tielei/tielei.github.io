@@ -1,4 +1,4 @@
 ---
 layout: category
-category: web
+category: essay
 ---

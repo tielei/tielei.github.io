@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "server"
+category: [distributed_system, server]
 title: "基于Redis的分布式锁到底安全吗（上）？"
 date: 2017-02-11 12:00:00 +0800
 published: true

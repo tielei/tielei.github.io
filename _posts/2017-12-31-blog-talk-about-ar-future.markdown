@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "为什么未来是增强现实的？"
 date: 2017-12-31 00:00:01 +0800
 published: true

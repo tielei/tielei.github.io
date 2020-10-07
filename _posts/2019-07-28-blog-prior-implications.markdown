@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "用统计学的观点看世界：从找不到东西说起"
 date: 2019-07-28 00:00:00 +0800
 published: true

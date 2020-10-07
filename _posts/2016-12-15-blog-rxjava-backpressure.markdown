@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "android"
+category: "client_dev"
 title: "如何形象地描述RxJava中的背压和流控机制？"
 date: 2016-12-15 16:00:00 +0800
 published: true

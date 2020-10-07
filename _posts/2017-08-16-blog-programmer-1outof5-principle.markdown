@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "做技术的「五比一」原则"
 date: 2017-08-16 00:00:01 +0800
 published: true

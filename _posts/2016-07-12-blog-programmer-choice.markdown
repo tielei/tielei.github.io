@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "程序员的宇宙时间线"
 date: 2016-07-12 18:30:00 +0800
 published: true

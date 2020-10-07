@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "做人生大戏的主角——《红衫》读后"
 date: 2016-05-26 00:30:00 +0800
 published: true

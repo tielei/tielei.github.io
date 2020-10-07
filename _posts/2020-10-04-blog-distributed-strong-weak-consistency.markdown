@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "distributed_system"
 title: "条分缕析分布式：浅析强弱一致性"
 date: 2020-06-26 00:00:00 +0800
 published: true

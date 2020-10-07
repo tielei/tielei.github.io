@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "【科幻】光年之外的世界"
 date: 2017-01-29 00:00:01 +0800
 published: true

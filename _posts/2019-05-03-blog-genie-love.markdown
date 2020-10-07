@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "万物有灵之精灵之恋"
 date: 2019-05-03 00:00:00 +0800
 published: true

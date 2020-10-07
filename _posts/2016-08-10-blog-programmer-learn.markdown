@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "技术的正宗与野路子"
 date: 2016-08-10 01:00:00 +0800
 published: true

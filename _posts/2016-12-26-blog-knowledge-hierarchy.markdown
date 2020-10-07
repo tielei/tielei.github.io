@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "知识的三个层次"
 date: 2016-12-26 23:00:00 +0800
 published: true

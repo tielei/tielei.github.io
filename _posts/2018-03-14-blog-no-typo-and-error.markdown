@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "一个错别字100块钱？"
 date: 2018-03-14 00:00:01 +0800
 published: true

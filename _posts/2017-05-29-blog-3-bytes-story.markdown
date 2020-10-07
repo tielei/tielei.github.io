@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "三个字节的历险"
 date: 2017-05-29 00:00:01 +0800
 published: true

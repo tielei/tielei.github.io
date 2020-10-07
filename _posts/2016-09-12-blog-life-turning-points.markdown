@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "论人生之转折"
 date: 2016-09-12 01:30:00 +0800
 published: true

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "程序员眼中的「技术-艺术」光谱"
 date: 2020-02-22 00:00:00 +0800
 published: true

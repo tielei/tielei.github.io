@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "【程序员脑洞故事】宇宙尽头的描述符"
 date: 2016-07-31 01:00:00 +0800
 published: true

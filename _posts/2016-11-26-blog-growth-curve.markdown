@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "技术的成长曲线"
 date: 2016-11-26 15:30:00 +0800
 published: true

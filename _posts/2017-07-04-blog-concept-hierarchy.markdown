@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "分层的概念——认知的基石"
 date: 2017-07-04 00:00:01 +0800
 published: true

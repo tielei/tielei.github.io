@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "ml"
 title: "给普通人看的机器学习(一)：优化理论"
 date: 2020-01-18 00:00:00 +0800
 published: true

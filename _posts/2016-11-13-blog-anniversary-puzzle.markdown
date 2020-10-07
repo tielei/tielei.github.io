@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "光棍节发生的故事：生日谜题"
 date: 2016-11-13 10:00:00 +0800
 published: true

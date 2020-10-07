@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "程序员的武林秘籍"
 date: 2017-07-22 00:00:01 +0800
 published: true

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "android"
+category: "client_dev"
 title: "Android端外推送到底有多烦？"
 date: 2016-08-06 10:00:00 +0800
 published: true

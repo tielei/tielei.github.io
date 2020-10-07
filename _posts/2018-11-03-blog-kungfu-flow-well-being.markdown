@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "心流：写作、编程和修炼武功的共同法门"
 date: 2018-11-03 00:00:01 +0800
 published: true

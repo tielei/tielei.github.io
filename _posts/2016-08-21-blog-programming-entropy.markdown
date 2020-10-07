@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "编程世界的熵增原理"
 date: 2016-08-21 01:00:00 +0800
 published: true

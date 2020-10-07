@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "马拉松式学习与技术人员的成长性"
 date: 2017-03-22 01:00:00 +0800
 published: true

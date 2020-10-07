@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "程序员的那些反模式"
 date: 2016-08-29 01:00:00 +0800
 published: true

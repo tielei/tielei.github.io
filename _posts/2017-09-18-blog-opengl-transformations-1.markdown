@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "android"
+category: "client_dev"
 title: "OpenGL ES和坐标变换（一）"
 date: 2017-09-18 00:00:01 +0800
 published: true

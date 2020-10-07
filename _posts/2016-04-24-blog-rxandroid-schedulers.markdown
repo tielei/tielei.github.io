@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "android"
+category: "client_dev"
 title: "用一张图解释RxJava中的线程控制"
 date: 2016-04-24 12:10:00 +0800
 published: true

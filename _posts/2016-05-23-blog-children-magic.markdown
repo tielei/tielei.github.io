@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "小孩子的魔法"
 date: 2016-05-23 00:30:00 +0800
 published: true

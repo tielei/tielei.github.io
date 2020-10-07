@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "ios"
+category: "client_dev"
 title: "苹果IAP开发中的那些坑和掉单问题"
 date: 2016-04-05 15:07:00 +0800
 published: true

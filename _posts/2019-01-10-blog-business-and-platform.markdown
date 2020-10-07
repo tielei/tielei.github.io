@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "漫谈业务与平台"
 date: 2019-01-10 00:00:01 +0800
 published: true

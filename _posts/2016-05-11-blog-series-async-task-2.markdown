@@ -1,6 +1,6 @@
 ---
 layout: post
-category: [ios,android]
+category: "client_dev"
 title: "Android和iOS开发中的异步处理（二）——异步任务的回调"
 date: 2016-05-11 12:00:00 +0800
 published: true

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "有效的沟通，如忍者的最后一击！"
 date: 2016-12-07 09:30:00 +0800
 published: true

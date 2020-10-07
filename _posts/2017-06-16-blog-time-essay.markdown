@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "朋友，你的时间够用吗？"
 date: 2017-06-16 00:00:01 +0800
 published: true

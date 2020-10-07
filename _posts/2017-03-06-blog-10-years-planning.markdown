@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "蓄力十年，做一个成就"
 date: 2017-03-06 01:00:00 +0800
 published: true

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "女儿的书单"
 date: 2016-07-11 00:30:00 +0800
 published: true

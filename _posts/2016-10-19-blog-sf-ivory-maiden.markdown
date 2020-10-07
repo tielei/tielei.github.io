@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "【科幻】象牙少女"
 date: 2016-10-19 12:00:00 +0800
 published: true

@@ -10,12 +10,13 @@ name: "铁蕾的个人博客"
 url: http://zhangtielei.com
 domain: zhangtielei.com
 all_categories: [
+["distributed_system", "分布式","/posts/distributed_system.html"], 
+["ml", "机器学习","/posts/ml.html"],
+["essay", "散文小说","/posts/essay.html"],
+["client_dev", "移动开发","/posts/client_dev.html"], 
+["server", "服务端技术","/posts/server.html"],
 ["poems", "我的诗词","/posts/poems.html"], 
-["android", "Android开发","/posts/android.html"], 
-["ios", "iOS开发","/posts/ios.html"], 
-["server", "服务器架构","/posts/server.html"],
-["about", "关于","/about.html"],
-["other", "杂记","/posts/other.html"]
+["about", "关于我","/about.html"]
 ]
 
 paginate: 8

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "为什么有些技术书籍难以读懂？"
 date: 2017-10-15 00:00:01 +0800
 published: true

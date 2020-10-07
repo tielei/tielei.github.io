@@ -1,6 +1,6 @@
 ---
 layout: post
-category: [ios,android]
+category: "client_dev"
 title: "Android和iOS开发中的异步处理（三）——多个异步任务协作"
 date: 2016-05-18 23:30:00 +0800
 published: true

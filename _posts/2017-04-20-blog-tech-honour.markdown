@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "捍卫技术的尊严"
 date: 2017-04-20 01:00:00 +0800
 published: true

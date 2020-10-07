@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "山的那一边"
 date: 2018-07-29 00:00:01 +0800
 published: true

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "server"
+category: "distributed_system"
 title: "漫谈分布式系统、拜占庭将军问题与区块链"
 date: 2018-01-22 00:00:01 +0800
 published: true

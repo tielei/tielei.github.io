@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "天赋是个伪命题吗？"
 date: 2017-11-12 00:00:01 +0800
 published: true

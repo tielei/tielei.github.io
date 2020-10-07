@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "技术攻关：从零到精通"
 date: 2017-04-04 01:00:00 +0800
 published: true

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "互联网风雨十年，我所经历的技术变迁"
 date: 2016-11-10 01:00:00 +0800
 published: true

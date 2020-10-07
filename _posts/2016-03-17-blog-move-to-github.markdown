@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "博客搬家啦，庆祝!"
 date: 2016-03-17 01:27:00 +0800
 published: true

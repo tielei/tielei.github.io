@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "ml"
 title: "你需要了解深度学习和神经网络这项技术吗？"
 date: 2016-09-23 17:00:00 +0800
 published: true

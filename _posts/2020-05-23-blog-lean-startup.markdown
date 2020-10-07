@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "由「精益创业」所想到的"
 date: 2020-05-23 00:00:00 +0800
 published: true

@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "卓越的人和普通的人到底区别在哪？"
 date: 2020-01-12 00:00:00 +0800
 published: true

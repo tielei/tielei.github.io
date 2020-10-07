@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "在技术和业务中保持平衡"
 date: 2020-02-09 00:00:00 +0800
 published: true

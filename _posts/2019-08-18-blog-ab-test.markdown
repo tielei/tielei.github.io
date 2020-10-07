@@ -1,6 +1,6 @@
 ---
 layout: post
-category: "other"
+category: "essay"
 title: "科学精神与互联网A/B实验"
 date: 2019-08-18 00:00:00 +0800
 published: true
