@@ -29,21 +29,49 @@ published: true
 
 要理解这件事相关的描述，必须对事件偏序、因果性、相对论等概念有基本的了解。但这不是我们目前的重点（相关讨论会在下一章节开始）。现在你只要记住，这篇论文之所以经典，是因为它揭示了分布式系统的某些深层本质，深深地影响了人们对于分布式系统的思考方式。
 
-当然，这篇论文除了理论意义和历史价值之外，它与业界一些重要的分布式系统实践也都有紧密的联系。比如，在大规模的分布式环境下产生单调递增的时间戳，是个很难的问题，而谷歌的全球级分布式数据库Spanner就解决了这个问题，甚至能够在跨越遍布全球的多个数据中心之间高效地产生单调递增的时间戳。做到这一点，靠的是一种称为TrueTime的机制，而这种机制的理论基础就是Lamport这篇论文中的物理时钟算法（两者之间有千丝万缕的联系）。再比如，这篇论文中定义的「happened before」关系，不仅在分布式系统设计中成为考虑不同事件之间关系的基础，而且在多线程编程模型中也是重要的概念。另外，还有让很多人忽视的一点是，利用分布式状态机来实现数据复制的通用方法（State Machine Replication，简称SMR），其实也是这篇论文首创的。
+当然，这篇论文除了理论意义和历史价值之外，它与业界一些重要的分布式系统实践也都有紧密的联系。比如，在大规模的分布式环境下产生单调递增的时间戳，是个很难的问题，而谷歌的全球级分布式数据库Spanner就解决了这个问题，甚至能够在跨越遍布全球的多个数据中心之间高效地产生单调递增的时间戳。做到这一点，靠的是一种称为TrueTime的机制，而这种机制的理论基础就是Lamport这篇论文中的物理时钟算法（两者之间有千丝万缕的联系）。再比如，这篇论文中定义的「Happened Before」关系，不仅在分布式系统设计中成为考虑不同事件之间关系的基础，而且在多线程编程模型中也是重要的概念。另外，还有让很多人忽视的一点是，利用分布式状态机来实现数据复制的通用方法（State Machine Replication，简称SMR），其实也是这篇论文首创的。
 
 总之，如果在整个分布式的技术领域中，你只有精力阅读一篇论文，那一定要选这一篇了。只有理解了这篇论文中揭示的这些涉及时间、时钟和排序的概念，我们才能真正在面对分布式系统的设计问题时游刃有余。
 
-### 时间、时钟和排序
+### 分布式系统中的事件和偏序关系
 
+从论文的题目看，《Time, Clocks, and the Ordering of Events in a Distributed System》，论文主要是讲三个基础概念：时间（Time）、时钟（Clock）、事件排序（Ordering of Events）。它们之间的关系大概是：
+* 一个分布式系统由很多进程组成，而一个进程可以看成是一个事件序列。所以说，事件是一个抽象概念，根据应用场景不同，程序运行发生的任何事情都可以表示成事件。比如，根据论文中举的例子，一个子程序开始执行，可以看成是一个事件；一条机器指令的执行，也可以看成一个事件。
+* 时间是一个物理学上的概念。根据相对论，时空是不可分割的，时间必须与空间一起讨论才有意义。每个事件发生的时候，都对应一个时间点。
+* 时钟分两种，一种是物理时钟（Physical Clock），或者叫实时时钟（Real Clock）；另一种是逻辑时钟（Logical Clock）。物理时钟是对时间的一种度量；现实中的物理时钟肯定是有误差的。而逻辑时钟是跟物理时间无关的，用于对每一个发生的事件指派一个单调递增的数值，是系统执行节拍的一种内部表示。
+* 两个不同的事件，可能具有先后关系，也就是能够排序的；也可能两个事件之间根本无法按照先后关系来排序。也就是说，事件排序是偏序的（Partial Ordering）。
 
-### 逻辑时钟和偏序
+论文实际上是从事件开始讲起的。进程的执行被看成是一连串事件的持续发生。随后，事件之间的排序问题就很自然地被提出来了。联系我们日常的系统设计实践，我们就经常需要对分布式系统中的不同事件的发生次序进行比较。比如我们在之前的文章中讨论的各种一致性模型，主要就是给予不同读写操作（事件）一个合理的排序；再比如为了实现串行化（Serializability）的事务隔离性，也需要判定各个事务操作之间的排序。这些排序问题，可能涉及到在一个进程内部的多个事件之间排序，这通常还是比较容易的；同时还可能涉及到对发生在不同进程（位于不同节点上）上的事件进行排序，这通常就没有那么直观了。
+
+如果我们说事件a在事件b之前发生，直觉上的含义大概是：事件a发生的时间比事件b发生的时间要早。然而，这种判定事件之间次序的方式，是依赖物理时间的。这要求我们必须引入物理时钟才行，而物理时钟不可能百分之百精确。
+
+因此，Lamport在定义事件之间的关系的时候特意避开了物理时间。这就是著名的「Happened Before」关系（用符号“→”来表示）。见下面的时空图（注意图中自下而上时间递增）：
+
+[<img src="/assets/photos_causal_consistency/lamport_distributed_processes.png" style="width:400px" alt="Lamport的进程收发消息举例" />](/assets/photos_causal_consistency/lamport_distributed_processes.png)
+
+结合上图我们举例解释一下「Happened Before」关系：
+* 同一进程内部先后发生的两个事件之间，具有「Happened Before」关系。比如，在进程*Q*内部，*q*<sub>2</sub>表示一个消息接收事件，*q*<sub>4</sub>表示另一个消息的发送事件，*q*<sub>2</sub>排在*q*<sub>4</sub>前面执行，所以*q*<sub>2</sub>→*q*<sub>4</sub>。
+* 同一个消息的发送事件和接受事件，具有「Happened Before」关系。比如，*p*<sub>1</sub>和*q*<sub>2</sub>分别表示同一个消息的发送事件和接收事件，所以*p*<sub>1</sub>→*q*<sub>2</sub>；同理，*q*<sub>4</sub>→*r*<sub>3</sub>。
+* 「Happened Before」满足传递关系。比如，由*p*<sub>1</sub>→*q*<sub>2</sub>，*q*<sub>2</sub>→*q*<sub>4</sub>和*q*<sub>4</sub>→*r*<sub>3</sub>，可以推出*p*<sub>1</sub>→*r*<sub>3</sub>。
+
+这种「Happened Before」关系的关键在于，它是一种偏序关系。也就是说，并不是所有事件之间都具有「Happened Before」关系。比如*p*<sub>1</sub>和*q*<sub>1</sub>两个事件就是无法比较的，*q*<sub>4</sub>和*r*<sub>2</sub>也是无法比较的。
+
+相信阅读过上一篇文章《[条分缕析分布式：因果一致性和相对论时空](https://mp.weixin.qq.com/s/wkXsRufVsbKqTwjzTgNqYQ)》的读者，已经发现了这里的「Happened Before」关系定义与因果一致性中的因果顺序定义非常相似。实际上，因果一致性的概念[4]相当于将「Happened Before」关系应用在了读写操作之上。
+
+Lamport在论文中是这样描述与因果性的关系的：
+
+> Another way of viewing the definition is to say that a→b means that it is possible for event a to causally affect event b. Two events are concurrent if neither can causally affect the other.  
+> (译文：看待「Happened Before」关系的另一种方式，相当于是说，a→b意味着事件a**有可能**在因果性上对事件b产生影响。如果两个事件谁也无法影响对方，那么它们就属于并发关系。)
+
+### 时钟和逻辑时钟
 
 
 ### 为什么又需要全局排序？
 
 可以解决任意分布式问题。是通用的方法。
+依赖时钟表达
 
-### 基于逻辑时钟进行全局排序，又什么问题？
+### 基于逻辑时钟进行全局排序，有什么问题？
 
 
 ### 时间本身预示了一种偏序
@@ -66,16 +94,7 @@ published: true
 * [1] Leslie Lamport, "Time, Clocks, and the Ordering of Events in a Distributed System", 1978.
 * [2] Paul R. Johnson, Robert H. Thomas, "[Robert H. Thomas](https://www.rfc-archive.org/getrfc.php?rfc=677){:target="_blank"}", 2015.
 * [3] Leslie Lamport, <https://www.microsoft.com/en-us/research/publication/time-clocks-ordering-events-distributed-system/>{:target="_blank"}.
-
-
-
-* [1] Martin Kleppmann,《Designing Data-Intensive Applications》, 2017.
-* [2] Martin Kleppmann, "Please Stop Calling Databases CP or AP", 2015.
-* [3] Peter Bailis, Ali Ghodsi, "Eventual Consistency Today: Limitations, Extensions, and Beyond", 2013.
-* [4] Werner Vogels, "Eventually Consistent", 2008.
-* [5] Prince Mahajan, Lorenzo Alvisi, Mike Dahlin, "Consistency, Availability, and Convergence", 2011.
-* [6] Peter Bailis, Ali Ghodsi, et al, "Bolt-on Causal Consistency", 2013.
-* [7] Mustaque Ahamad, Gil Neiger, James E. Burns, et al, "Causal Memory: Definitions, Implementation and Programming", 1994.
+* [4] Mustaque Ahamad, Gil Neiger, James E. Burns, et al, "Causal Memory: Definitions, Implementation and Programming", 1994.
 
 **其它精选文章**：
 
