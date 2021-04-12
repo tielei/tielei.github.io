@@ -209,7 +209,7 @@ Lamport定义了一种由不同进程组成的分布式系统模型，进程之�
 ##### 参考文献：
 
 * [1] Martin Kleppmann,《Designing Data-Intensive Applications》, 2017.
-* [2] Martin Kleppmann, "Please Stop Calling Databases CP or AP", 2015.
+* [2] Martin Kleppmann, "[Please Stop Calling Databases CP or AP](https://martin.kleppmann.com/2015/05/11/please-stop-calling-databases-cp-or-ap.html){:target="_blank"}", 2015.
 * [3] Peter Bailis, Ali Ghodsi, "Eventual Consistency Today: Limitations, Extensions, and Beyond", 2013.
 * [4] Werner Vogels, "Eventually Consistent", 2008.
 * [5] Prince Mahajan, Lorenzo Alvisi, Mike Dahlin, "Consistency, Availability, and Convergence", 2011.
