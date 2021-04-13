@@ -87,14 +87,24 @@ Lamport在论文中是这样描述与因果性的关系的：
 * 再考察同一个消息的发送事件和接收事件，*p*<sub>1</sub>→*q*<sub>2</sub>，而C〈*p*<sub>1</sub>〉 = 40 < C〈*q*<sub>2</sub>〉 = 52。
 
 现在我们已经直观地看到了一个合理、有效的逻辑时钟是什么样子。至于这个逻辑时钟是怎么实现出来的（比如各个事件的时间戳的具体数值是怎么产生的），论文中给出了一种实现，我们这里就不展开讨论这些细节了。但我们需要尤其注意的是，逻辑时钟的时钟条件，是一个单向的条件，反过来是不成立的。比如：
-* 我们有C〈*p*<sub>3</sub>〉 = 53 < C〈*q*<sub>4</sub>〉 = 54，但不能说明*p*<sub>3</sub>→*q*<sub>4</sub>成立。也就是说，虽然对任意两个事件来说，它们各自对应的时间戳在数值上都可以比较大小，但据此并不能得到两个事件之间存在「Happened Before」关系。
+* 我们有C〈*p*<sub>3</sub>〉 = 53 < C〈*q*<sub>4</sub>〉 = 54，但不能说明*p*<sub>3</sub>→*q*<sub>4</sub>成立。也就是说，虽然对任意两个事件来说，它们各自对应的时间戳在数值上都可以比较大小，但据此并不能得到两个事件之间存在「Happened Before」关系。从本质上看，时钟条件的这种单向推导逻辑，是由「Happened Before」关系的偏序特性所决定的。
 
 ### 为什么又需要全局排序？
 
-我们希望，可以通过比较事件的时间戳数值大小，来判断事件发生的次序（即「Happened Before」关系）
+我们简单回顾一下前一个章节的思路。最开始，我们引入逻辑时钟，是希望可以通过比较事件的时间戳数值大小，来判断事件之间的「Happened Before」关系。然而，最后由于时钟条件的单向推导逻辑的限制，我们发现，不能根据两个事件对应的时间戳在数值上的大小来推断出它们之间是否存在「Happened Before」关系。真是一个矛盾的结果！
 
-可以解决任意分布式问题。是通用的方法。
-依赖时钟表达
+导致这个矛盾的原因，还是在于「Happened Before」的偏序性。对于不具有「Happened Before」关系的两个事件来说，它们对应的时间戳数值比较大小，是没有意义的。但是，确实可以根据两个时间戳的大小，来为两个事件「指定」一个次序。这个次序是人为指定的，并不是客观上要求的。还是拿前面的消息时空图来举个例子：*p*<sub>3</sub>和*q*<sub>4</sub>这两个事件，它们之间不存在「Happened Before」关系。但是，我们发现C〈*p*<sub>3</sub>〉 = 53，C〈*q*<sub>4</sub>〉 = 54，而53 < 54，所以我们人为指定一个次序，即认为*p*<sub>3</sub>是在*q*<sub>4</sub>之前发生的。实际上，由于这两个事件之间不存在「Happened Before」关系，我们不管是认为*p*<sub>3</sub>在*q*<sub>4</sub>之前发生，还是认为*q*<sub>4</sub>在*p*<sub>3</sub>之前发生，都没有大碍。
+
+现在，我们就引入了另外一个问题：如果我们按照逻辑时钟给出的时间戳从小到大把所有事件都排成一个序列，那么就得到了分布式系统中所有事件的全局排序。下面我们把前面进程P、Q和R的消息时空图中的所有事件，按照时间戳进行全局的大排序，会得到：
+* *p*<sub>1</sub> => *r*<sub>1</sub> => *r*<sub>2</sub> => *q*<sub>1</sub> => *p*<sub>2</sub> => *q*<sub>2</sub> => *p*<sub>3</sub> => *q*<sub>3</sub> => *q*<sub>4</sub> => *q*<sub>5</sub> => *r*<sub>3</sub> => *p*<sub>4</sub> => *q*<sub>6</sub> => *r*<sub>4</sub> => *q*<sub>7</sub>
+
+在这个排序中，所有事件之间的「Happened Before」关系都被保持住了；而本来不存在「Happened Before」关系的事件之间，我们也依据时间戳的大小，通过人为指定的方式得到了一个次序。总之，我们得到了所有事件的一种全局排序，而这种排序是和「Happened Before」关系（即因果顺序）保持一致的。
+
+那么，这样一种全局排序有什么用呢？实际上，这是实现任何分布式系统的一种通用方法。只要我们获得了所有事件的全局排序，那么各种一致性模型对于读写操作所呈现的排序要求，很自然就能得到满足。回想一下我们在之前的文章《[条分缕析分布式：浅析强弱一致性](https://mp.weixin.qq.com/s/3odLhBtebF4cm58hl-87JA)》中的分析，线性一致性和顺序一致性所要求的，正是要把所有读写操作（对应这里的事件）重排成一个全局线性有序的序列。
+
+实际上，之所以前面设计出了逻辑时钟，目的就是为了得到一种事件全局排序的机制。而更近一步，事件的全局排序结合状态机复制（State Machine Replication）的思想，几乎可以为任何分布式系统的设计提供思路。关于这一点，Lamport曾经写下了如下的句子[3]：
+> It didn’t take me long to realize that an algorithm for totally ordering events could be used to implement any distributed system. A distributed system can be described as a particular sequential state machine that is implemented with a network of processors. The ability to totally order the input requests leads immediately to an algorithm to implement an arbitrary state machine by a network of processors, and hence to implement any distributed system.  
+> (译文：我很快就意识到，对事件进行全局排序的算法，可以用于实现任何分布式系统。一个分布式系统可以被看作是一个由处理器网络实现的序列状态机。对输入请求进行全局排序的能力一旦具备，我们立即就能推导出使用处理器网络实现任意一个状态机的算法，因此可以用于实现任何分布式系统。)
 
 ### 基于逻辑时钟进行全局排序，有什么问题？
 
