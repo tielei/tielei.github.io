@@ -103,6 +103,7 @@ Lamport在论文中是这样描述与因果性的关系的：
 那么，这样一种全局排序有什么用呢？实际上，这是实现任何分布式系统的一种通用方法。只要我们获得了所有事件的全局排序，那么各种一致性模型对于读写操作所呈现的排序要求，很自然就能得到满足。回想一下我们在之前的文章《[条分缕析分布式：浅析强弱一致性](https://mp.weixin.qq.com/s/3odLhBtebF4cm58hl-87JA)》中的分析，线性一致性和顺序一致性所要求的，正是要把所有读写操作（对应这里的事件）重排成一个全局线性有序的序列。
 
 实际上，之所以前面设计出了逻辑时钟，目的就是为了得到一种事件全局排序的机制。而更近一步，事件的全局排序结合状态机复制（State Machine Replication）的思想，几乎可以为任何分布式系统的设计提供思路。关于这一点，Lamport曾经写下了如下的句子[3]：
+
 > It didn’t take me long to realize that an algorithm for totally ordering events could be used to implement any distributed system. A distributed system can be described as a particular sequential state machine that is implemented with a network of processors. The ability to totally order the input requests leads immediately to an algorithm to implement an arbitrary state machine by a network of processors, and hence to implement any distributed system.  
 > (译文：我很快就意识到，对事件进行全局排序的算法，可以用于实现任何分布式系统。一个分布式系统可以被看作是一个由处理器网络实现的序列状态机。对输入请求进行全局排序的能力一旦具备，我们立即就能推导出使用处理器网络实现任意一个状态机的算法，因此可以用于实现任何分布式系统。)
 
@@ -127,11 +128,43 @@ Lamport的论文行文到这里，出现了一个不小的跳跃。我们可以�
 
 具体含义我们下一小节再讨论。
 
-### 时间本身预示了一种偏序
+### 时空本身定义了一种偏序
 
-因果性
+如果不了解一点相对论的时空概念，那么就很难理解前面的Strong Clock Condition是什么含义。那接下来我们就简单介绍一下相关的概念。
+
+我们生活的空间是三维空间，但是为了更好地用图形来表示，我们先看二维的情况。现在假定我们的世界是一个二维平面，如下图：
+
+[<img src="/assets/photos_time_clocks/light_circle_example.png" style="width:400px" alt="光在二维平面上的传递" />](/assets/photos_time_clocks/light_circle_example.png)
+
+平面上有一个点O，这个点的位置上放置了一个光源。我们以点O为原点，建立一个二维坐标系。位于O点的光源发出的光线，会在这个平面上朝着四周各个方向传播。根据光的传播速度计算，这些光线在1秒后会到达以O为圆心、以30W公里为半径的圆周，在2秒后会到达以O为圆心、以60W公里为半径的圆周。
+
+上面这个图形象地表达了光在二维平面上传播的情况。但为了更好地表现光随着时间的流逝传播的情况，我们增加一个时间维度，得到下面的时空坐标：
+
+[<img src="/assets/photos_time_clocks/light_cone_example.png" style="width:400px" alt="光锥图" />](/assets/photos_time_clocks/light_cone_example.png)
+
+在这个时空坐标中，空间占两维（x和y），时间占一维，形成了一个三维时空。在这样的一个时空坐标中，在每个时刻t，光所到达的地方都会形成一个圆周（图中用绿色虚线圆周表示）。最终，光的传播所经过的时空位置构成一个向上的光锥（称为未来光锥）。
+
+在这个三维时空坐标系中，每个点都可以一个事件。比如点P，表示在特定位置、特定时刻发生的某个事件。同理，点Q也可以表示一个事件。而原点O，可以表示在原点位置发生于时刻0的事件。
+
+根据相对论，任何信息传递的速度，最快就是光速。而一个事件要想对另一个事件产生影响，至少要在那个事件发生之前传递一定的信息到达所在的位置。因此，一个事件所能够影响的范围，就是以它为顶点的未来光锥内部。以上图为例，点P在点O的未来光锥内部，因此事件P可能受到事件O的影响；而点Q在点O的未来光锥外部，因此事件Q不可能受到事件O的影响。
+
+这些事件之间可能产生的影响关系，就是我们上一章节末尾所提到的事件偏序关系“➜”。例如，对于事件O和事件P的关系，我们可以用符号表示成：O➜P。但事件O和事件Q之间就不存在O➜Q的关系。
+
+以上为了方便理解，我们讨论的是三维时空的情况（两维空间+一维时间）。而现实世界是四维时空，包括三维空间+一维时间。在四维时空坐标中，我们不再能直观地画出光锥的形状，但背后的原理可以借助理性来类推。
+
+现在，我们来对前面碰到的诸多概念进行一个总结：
+* 一个事件**可能**对它的未来光锥内部的任何事件产生因果性上的影响。
+* 一个事件与它的未来光锥内部的任何事件之间，满足一个偏序关系，即“➜”。
+
+与「Happened Before」关系进行对比，我们可以认为，「Happened Before」关系是专门针对分布式系统设计出来的概念，是对相对论中的事件偏序关系的一种模拟。Lamport在论文中定义完「Happened Before」的概念之后，讲了这样一段话：
+
+> In relativity, the ordering of events is defined in terms of messages that could be sent. However, we have taken the more pragmatic approach of only considering messages that actually are sent.  
+> (译文：在相对论中，事件的排序是根据**可能**发送的消息来定义的。然而，我们这里采取了更务实的做法，仅仅考虑那些实际上已经发送过的消息。)
+
+最后我们回到物理时钟的Strong Clock Condition上来。如果物理时钟能够做到百分之百精确（跟真实时间随时保持一致），那么这个强时钟条件是显而易见满足的。为什么呢？因为由“➜”所表示的两个事件之间的偏序关系，意味着后一个事件在前一个事件的未来光锥之内，当然它的时间坐标就要大于第一个事件了。但是，物理时钟一定是有误差的，当我们从理论回到工程的现实，就需要一个时钟同步算法来保证Strong Clock Condition总是被满足。
 
 ### 物理时钟同步算法
+
 
 
 ### 我们这个世界
