@@ -212,7 +212,7 @@ Decoder中的**自注意力**，为了遵循因果关系，在计算上需要构
 
 [<img src="/assets/images_transformer/transformer_encoding_decoding.gif" style="width:600px" alt="Transformer的编码+解码动态过程" />](/assets/images_transformer/transformer_encoding_decoding.gif)
 
-**关于动图的说明**：图中每个圆点表示一个向量，也就是某个token在Encoder或Decoder某一层的内部表示。图中的运动弧线，表示沿着**自注意力**或**交叉注意力**指导的方向上，token之间信息的流动方向。在前半部分的Encoding过程中，自上而下，是经历了三个Encoder Layer；而在后半部分的Decoding过程中，则是自下而上，经历了三个Decoder Layer。
+**关于动图的说明**：这个动图借助一个例子，可视化地展示了Transformer两个阶段的处理过程：先是Encoding，后是Decoding。图中每个圆点表示一个向量，也就是某个token在Encoder或Decoder某一层的内部表示。图中的运动弧线，表示沿着**自注意力**或**交叉注意力**指导的方向上，token之间信息的流动方向。在前半部分的Encoding过程中，自上而下，是经历了三个Encoder Layer；而在后半部分的Decoding过程中，则是自下而上，经历了三个Decoder Layer。
 
 ### 小结
 
