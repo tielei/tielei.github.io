@@ -8,7 +8,7 @@ Welcome to visit my blog!
 Name: Charles Zhang (张铁蕾)  
 Gender: Male  
 City: Beijing, China   
-Career: 阿里 (now) | 微爱CTO | 人人网 | 摩托罗拉(中国)   
+Career: 水木分子 | 快手 | 阿里 | 微爱CTO | 人人网 | 摩托罗拉(中国)   
 Education: Tsinghua | BUPT   
 爱好: 写作，小说，自然科学，哲学，Coding，诗词
 
