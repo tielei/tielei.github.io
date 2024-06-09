@@ -16,13 +16,13 @@ published: true
 * 首先，从系统外部的视角，应该**如何对系统进行度量？**我们应该关心哪些性能指标？跟传统的系统相比，又有什么异同？问题的答案决定了系统设计目标，也决定了我们进一步思考的方向。
 * 从性能的角度出发，如何理解系统的本质？我们追求fundamental的东西——那些不随着技术变迁而变化的原则。这要求我们透过系统表层的千变万化，**从底层逻辑的层面对系统进行建模**。
 * 从理论回到现实，以vLLM为例，我们讨论一下，真实的推理系统是**做了哪些重要的优化**以提升性能的。在这部分，我们也会涉及到影响推理性能的一些参数配置细节。
-* 最后，我们结合前面分析的过程，**展开描述一下系统设计中的抽象思维**。这是比具体的知识更重要的东西。
+* 最后，我们结合前面分析的过程，**展开描述一下工程设计中的系统化思维**。这是比具体的知识更重要的东西。
 
 ### 对系统如何度量？
 
 我们应该关心哪些性能指标？这是系统设计中一个非常重要的问题。而且，这不是一个新问题。想想跑在互联网上的那些应用系统，诸如搜索引擎、Feeds流、电商交易系统，我们当时是怎么描述系统的性能的？
 
-很多人会想到QPS (queries per second) 或 TPS (transactions per second)。没错，它们表达了系统的一个重要的性能指标，称为**吞吐量 (Throughput)**。QPS或TPS都是系统**吞吐量**的度量单位，表达了单位时间内系统所能处理的请求数。也可以用requests per second来表示工作负载；y轴用。
+很多人会想到QPS (queries per second) 或 TPS (transactions per second)。没错，它们表达了系统的一个重要的性能指标，称为**吞吐量 (Throughput)**。QPS或TPS都是系统**吞吐量**的度量单位，表达了单位时间内系统所能处理的请求数。也可以用requests per second（每秒请求数）来表示吞吐量。
 
 吞吐量为什么重要？因为它表达了系统整体的处理能力。吞吐量越高，系统就可以用更少的资源来处理同样的请求，也就意味着更低的单位成本。
 
@@ -31,8 +31,6 @@ published: true
 通常来说，一个系统在满负载的情况下，它的吞吐量越高，请求的平均响应时间也越短。你可能会问：两者是不是倒数的关系？比如，1秒钟处理了10个请求，也就是吞吐量是10 requests/s，那么平均每个请求的响应时间是不是1/10 = 0.1s呢？
 
 不完全是。如果系统完全是串行执行的，前一个请求处理完才能处理下一个请求，那么确实响应时间是0.1s。但是，现代系统都有一定的并行执行能力，这就让情况不同了。假设一个系统内部有10个并行的、独立的、同构的 (parallel, independent, homogeneous) 的**服务通道 (service channel)**，那么10个请求可以并行执行，每个请求都执行1s，也可以在1s内将10个请求都执行完。这样算下来的话，系统的吞吐量是10 requests/s，而平均响应时间是1s。这也是Cary Millsap在十几年前的一篇经典blog[1]，表达了一个「M/M/m」系统的响应时间随着工作负载的变化曲线。
-
-中举的一个例子。
 
 因此，从吞吐量不能推导出响应时间。在接下来的讨论中，我们会看到，**服务通道**是其中一个重要的内部变量。不过现在，我们暂时先把关注点放在系统外部。通常来说，鉴于系统的复杂性，**我们需要同时使用吞吐量和响应时间来度量一个系统**。大体上可以这样理解：
 * 吞吐量关注系统整体性能，与系统的成本有关。
@@ -104,7 +102,7 @@ published: true
 
 [<img src="/assets/images_vllm_perf/vllm_response_time_vs_workload.jpg" style="width:740px" alt="vLLM的工作负载对于系统性能的影响" />](/assets/images_vllm_perf/vllm_response_time_vs_workload.jpg)
 
-注意在这个图中，x轴用requests per second来表示工作负载；y轴的Normalized Latency是响应时间的一个度量方式。
+注意在这个图中，x轴用req/s (每秒请求数) 来表示工作负载；y轴的Normalized Latency是响应时间的一个度量方式。
 
 当然，我们也可以画出系统的吞吐量随工作负载的变化曲线。容易想象出曲线的形状：
 * 在拐点之前，吞吐量随着工作负载增加而增大。
@@ -118,18 +116,80 @@ published: true
 
 [<img src="/assets/images_vllm_perf/system_perf_concepts_v2.jpg" style="width:600px" alt="系统性能相关的概念图V2" />](/assets/images_vllm_perf/system_perf_concepts_v2.jpg)
 
-上图中，算力、服务通道、相关性几个因素，都属于系统的固有属性，它们共同决定了系统容量。
+我们基本上已经得到了对于系统性能进行分析的逻辑框架（建模的结果）。我们重新概括总结一下：
+* **算力**、**服务通道**、**相关性**几个因素，都属于系统的**固有属性**，它们共同决定了**系统容量**。
+* 在系统上施加一定的**工作负载**，系统就对外表现出相应的性能指标。必须同时使用**吞吐量**和**响应时间**来度量一个系统。
+* 在拐点前后，**工作负载**对于系统性能指标的影响，具有显著的不同。
+* **响应时间**由三部分组成：**服务时间**+**排队延迟**+**相关性延迟**。
 
-### vLLM做了哪些优化？
+### 分析一下vLLM
 
+以上逻辑框架是抽象的。之所以总结这样一个逻辑框架，其实有三个目标：
+* 【度量】指导我们全面地**度量**一个系统的性能。
+* 【使用】指导我们如何**使用**系统。对于一个已有的系统，施加多少**工作负载**是合适的？
+* 【优化】指导我们如何改变系统的**固有属性**，从而**优化**系统在固定**工作负载**下的性能指标。
 
+本节我们以vLLM[4]（一个高性能的大模型推理引擎）为例来具体分析这三个目标。
+
+首先来看**度量**的问题。
+
+我们已经在第一小节得到了针对LLM推理系统的三个性能指标：吞吐量（每秒生成的token数）、首token的生成延迟、Normalized Latency。考虑到工作负载（每秒请求数）对于系统性能的影响，为了全面刻画系统的性能表现，我们可以画出三类性能曲线：
+* 每秒生成的token数随工作负载的变化曲线。
+* 首token的生成延迟随工作负载的变化曲线。
+* Normalized Latency随工作负载的变化曲线。
+
+再来看**使用**的问题。
+
+我们希望系统承载尽可能多的工作负载，这样才能达到最低的单位成本。但是，工作负载增加到一定程度，延迟就会大幅增加。那么，给系统施加多少工作负载才是最优的呢？答案是，让工作负载处于接近拐点的位置。这时候，系统的吞吐量接近最高值，而延迟也还没有大幅增加。
+
+当流量增加，导致工作负载越过了拐点，就应该进行系统扩容了。通过增加更多的计算节点，来让单个节点的工作负载降下来，直到降低到拐点以下。
+
+最后，以vLLM为例，来说说**优化**的问题。
+
+vLLM采用PagedAttention算法[2]，对推理性能做了很多优化。根据上一小节的逻辑框架，我们应该从算力、服务通道、相关性这三个维度去理解。
+
+概括起来，vLLM对于推理性能的优化，主要可以归结在两个方面：
+* 第一，**从提升服务通道数目的角度**。
+* 第二，**从降低相关性的角度**。
+
+具体来看，提升服务通道的数目，是如何做到的呢？
+* 一方面，它做了**batching**，把临近到达的多个请求放在一起，批量去做生成的计算。这样做可以更好地利用GPU的并行计算能力，相当于提升了服务通道的数目。
+* 另一方面，PagedAttention算法通过对显存进行分块 (block) ，并进行了逻辑块和物理块两级管理，提高了显存利用率。因此，同样大小的显存资源，就可以容纳更多请求的KV cache。于是，这就允许在一个batch中放入更多的请求，进一步提升了服务通道的数目。
+
+这里我们着重分析一下提高显存利用率的做法。为什么vLLM很大程度上是在做显存管理？据PagedAttention的论文[2]所述，**GPU计算能力的增长速度，快于显存容量的增长速度**。这导致计算能力和显存容量之间的gap越来越大，显存容量逐渐成为了系统瓶颈。因此，vLLM借鉴了操作系统的虚拟内存分页机制，设计了非常精细的显存管理方案，使得整个sequence不必存储于连续的显存空间内。这种方案，加上合适的block大小设置，完全杜绝了外部碎片 (external fragmentation) ，并极大降低了内部碎片 (internal fragmentation) 。最终带来的结果就是，降低了显存浪费，提高了显存利用率。
+
+再看一下另外一个方面，vLLM是如何降低相关性的呢？
+
+依据LLM推理场景工作负载的流量特征，本来是存在一些不利因素，它们是倾向于使相关性增加的：
+* 其中一个不利因素，在于请求的超大颗粒度 (granularity)。每个请求都可能生成一个很长的sequence，每个sequence都会占用非常大的显存资源（多大几个GB）。这就导致不同的请求很容易竞争同一份资源，相关性增加。解决的思路是，降低系统调度的粒度，**从sequence level降低到iteration level**。
+* 另外一个不利因素，来源于batch操作本身。将多个请求放在一个batch中，原本不相关的请求就产生了相关性。短sequence可能受长sequence的拖累，要等到一个batch中所有sequence都生成完毕，才能最终从batch中退出，从而极大增加了生成延迟。解决的思路是blog[5]中称之为「**continuous batching**」的技术。
+
+基于iteration level的调度，将一个sequence的生成，切分成多次iteration来完成。iteration又分为两种计算类型：prefill和decode。prefill的计算粒度可能仍然较大，它一般要求整个prompt的所有token都要在一个iteration中计算完毕。为了缓解这个问题，vLLM还提供了*Chunked Prefill*模式，允许将大的prefill操作分解成小的chunk。vLLM启动时，可以传入*--enable-chunked-prefill*参数来打开这种更细粒度的调度模式。
+
+**continuous batching**技术，是一种高度动态的batch操作。它允许一个sequence在生成完毕后立即可以退出当前batch，从而释放资源，并能够调度新的sequence进入当前batch。这一操作，本质上是让同一个batch内的不同请求不再需要互相等待，从而消除了batch操作带来的相关性延迟。
+
+至此，我们基本上把影响vLLM推理性能的关键因素都分析清楚了。最后，还有两个跟性能高度相关的参数，我们简单看一下：
+* 一个是*--max-num-seqs*参数。该参数指定了每次iteration操作最多可以放入一个batch的sequence数量。相当于是系统对于服务通道数目的一个软限制。
+* 另一个是*--max-num-batched-tokens*参数。该参数指定了每次iteration操作最多可以放入一个batch的token数量。相当于是系统对于单次计算能力（也就是算力）的一个软限制。
 
 ### 不变的东西
 
+熟悉我的读者朋友们应该知道，本公众号的目标不仅仅是简单地讨论具体的技术，而是更关注认知层面的总结。因此在文章最后啰嗦几句，算是个小结。
 
+在本文中，我们在抽象层面总结了一个逻辑框架，并结合vLLM的实例进行了具体的分析。通常来讲，具体的知识或具体的技术，在短期内是重要的，在长期看则没有那么重要。技术更新换代的速度正在加快，但总有些fundamental的东西，那些涉及到逻辑层面的本质的东西，是不随着技术变迁而变化的。因此，把相关概念的逻辑关系理清楚，是本文最重要的贡献；具体到vLLM/PagedAttention的分析以及对于具体度量指标的定义，则是次要的结论。
 
+在技术快速变化的环境中，面对新的框架，新的算法，新的技术变革，只要我们保持工程师的**系统化思维**，就总是能够从容面对。系统化思维，需要我们在更大范围内做整合，把原来看似不相关的表层概念进行抽象，才能在更高的抽象层面发现相似之处，达到融会贯通。人类知识的联想、迁移，可能性便来源于此。
 
+我之前写过的一些跟认知有关的文章，列出几篇，供感兴趣的读者阅读：
+* 《[谈谈业务开发中的抽象思维](https://mp.weixin.qq.com/s/Yad53nP5uUOKXNb8ATcKBA)》
+* 《[分层的概念——认知的基石](https://mp.weixin.qq.com/s/yLdRuhIWfLOnLPJSDocEhQ)》
+* 《[知识的三个层次](https://mp.weixin.qq.com/s/HnbBeQKG3SibP6q8eqVVJQ)》
+* 《[程序员眼中的「技术-艺术」光谱](https://mp.weixin.qq.com/s/nDw1m-d2vsUl1soFxlsBbw)》
+* 《[卓越的人和普通的人到底区别在哪？](https://mp.weixin.qq.com/s/7xXtmQ31ZkaPcFXVej4Yeg)》
 
+在文本的分析中，我们提到了银行营业厅的例子。它是一个分析并发在线系统的绝佳类比。有时候，世界的本质，就隐藏在看似普通的日常现象之中。在前面的文章《[卓越的人和普通的人到底区别在哪？](https://mp.weixin.qq.com/s/7xXtmQ31ZkaPcFXVej4Yeg)》一文中，我还提到了一个例子，图灵奖得主Lamport当年就是从观察面包店如何服务顾客的现象中，获得了他的顿悟，从而得窥分布式系统的本质，发明了划时代意义的「面包店算法」。
+
+你是不是已经发现了：不同的事物之间，总有那么几分相似呢？
 
 （正文完）
 
@@ -139,15 +199,18 @@ published: true
 * [2] Woosuk Kwon, et al. 2023. [Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180).
 * [3] [M/M/c queue
 ](https://en.wikipedia.org/wiki/M/M/c_queue)
+* [4] [vLLM官网](https://docs.vllm.ai/)
+* [5] Cade Daniel, et al. 2023. [How continuous batching enables 23x throughput in LLM inference while reducing p50 latency](https://www.anyscale.com/blog/continuous-batching-llm-inference).
 
 
 **其它精选文章**：
 
-* [对于2024年初的大模型，我们期待什么？](https://mp.weixin.qq.com/s/T_IOrCouYIX4jqCteSd9Yw)
-* [知识的三个层次](https://mp.weixin.qq.com/s/HnbBeQKG3SibP6q8eqVVJQ)
+* [企业AI智能体、数字化与行业分工](https://mp.weixin.qq.com/s/Uglj-w1nfe-ZmPGMGeZVfA)
+* [三个字节的历险](https://mp.weixin.qq.com/s/6Gyzfo4vF5mh59Xzvgm4UA)
+* [用统计学的观点看世界：从找不到东西说起](https://mp.weixin.qq.com/s/W6hSnQPiZD1tKAou3YgDQQ)
+* [分布式领域最重要的一篇论文，到底讲了什么？](https://mp.weixin.qq.com/s/FZnJLPeTh-bV0amLO5CnoQ)
 * [看得见的机器学习：零基础看懂神经网络](https://mp.weixin.qq.com/s/chHSDuwg20LyOcuAr26MXQ)
+* [白话科普：Transformer和注意力机制](https://mp.weixin.qq.com/s/jyy7WXtOqJPXJYssPpfiUA)
 * [内卷、汉明问题与认知迭代](https://mp.weixin.qq.com/s/rgKkJ5wI5G5BZ6lIJZj7WA)
 * [在技术和业务中保持平衡](https://mp.weixin.qq.com/s/OUdH5RxiRyvcrFrbLOprjQ)
-* [分布式领域最重要的一篇论文，到底讲了什么？](https://mp.weixin.qq.com/s/FZnJLPeTh-bV0amLO5CnoQ)
 * [漫谈分布式系统、拜占庭将军问题与区块链](https://mp.weixin.qq.com/s/tngWdvoev8SQiyKt1gy5vw)
-* [三个字节的历险](https://mp.weixin.qq.com/s/6Gyzfo4vF5mh59Xzvgm4UA)
