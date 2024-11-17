@@ -1,7 +1,7 @@
 ---
 layout: post
 category: "ml"
-title: "技术总结：拆解LLM背后的概率学原理"
+title: "科普一下：拆解LLM背后的概率学原理"
 date: 2024-11-01 00:00:00 +0800
 published: true
 ---
@@ -190,8 +190,8 @@ published: true
 * [3] Ashish Vaswani, et al. 2017. [Attention Is All You Need](https://arxiv.org/abs/1706.03762).
 * [4] Alec Radford, et al. 2019. [Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf).
 * [5] Tom B. Brown, et al. 2020. [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165).
-* [6] Michael A. Nielsen. 2015. [A visual proof that neural nets can compute any function](http://neuralnetworksanddeeplearning.com/chap4.html)
-* [7] Sebastian Raschka. 2024. [Build a Large Language Model (From Scratch)](https://www.manning.com/books/build-a-large-language-model-from-scratch)
+* [6] Michael A. Nielsen. 2015. [A visual proof that neural nets can compute any function](http://neuralnetworksanddeeplearning.com/chap4.html).
+* [7] Sebastian Raschka. 2024. [Build a Large Language Model (From Scratch)](https://www.manning.com/books/build-a-large-language-model-from-scratch).
 
 
 **其它精选文章**：
