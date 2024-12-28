@@ -40,7 +40,7 @@ cot = dspy.ChainOfThought('context, question -> response')
 注意上图中这一行代码：
 
 ```python
-cot(context=context, question=response)
+cot(context=context, question=question)
 ```
 
 我们看到调用`cot`这个Module的时候传入了两个参数：`context`和`question`，这与前面指定的Signature的形式是相符的，即`'context, question -> response'`。
