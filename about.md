@@ -18,7 +18,8 @@ Education: Tsinghua | BUPT
 GitHub: <https://github.com/tielei>{:target="_blank"}  
 我的微信公众号: tielei-blog (张铁蕾)
 
-![我的微信公众号: tielei-blog (张铁蕾)](/assets/my_weixin_public.jpg)
+[<img src="/assets/my_weixin_public.jpg" style="width:400px" alt="我的微信公众号：tielei-blog (张铁蕾)" />](/assets/my_weixin_public.jpg)
+
 
 
 {% include comment.html %}
