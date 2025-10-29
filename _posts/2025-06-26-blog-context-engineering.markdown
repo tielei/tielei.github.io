@@ -115,7 +115,7 @@ LLM的长上下文窗口缓解了Agent开发的很多问题，但这远不是解
 
 ##### 参考文献：
 * [1] Dex Horthy. [12-Factor Agents - Principles for building reliable LLM applications](https://github.com/humanlayer/12-factor-agents/blob/main/content/brief-history-of-software.md).
-* [2] Dex Horthy. [Context Engineering vs. Prompt Engineering: Guiding LLM Agents](https://www.youtube.com/watch?v=mldfMWbnZTg).
+* [2] Nate Jones. [Context Engineering vs. Prompt Engineering: Guiding LLM Agents](https://www.youtube.com/watch?v=mldfMWbnZTg).
 * [3] LangChain Team. [The rise of "context engineering"](https://blog.langchain.com/the-rise-of-context-engineering/).
 * [4] Hailey Joren, et al. [Sufficient Context: A New Lens on Retrieval Augmented Generation Systems](https://arxiv.org/abs/2411.06037).
 * [5] Walden Yan. [Don’t Build Multi-Agents](https://cognition.ai/blog/dont-build-multi-agents#principles-of-context-engineering).
