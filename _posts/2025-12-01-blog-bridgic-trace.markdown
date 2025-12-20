@@ -202,7 +202,7 @@ await travel_planner_agent.arun(
 
 我新建了一个“Bridgic开源技术交流群”，后面会在群里发布项目的开发进展及计划，并讨论相关技术。感兴趣的朋友可以扫描下面的二维码进群。如果二维码过期，请加微信ID: zhtielei，备注“来自Bridgic社区”。
 
-[<img src="/assets/bridgic_group_chat_qr_code.jpg" style="width:300px" alt="Bridgic技术交流群二维码" />](/assets/bridgic_group_chat_qr_code.jpg)
+[<img src="/assets/bridgic_group_chat_qr_code.png" style="width:300px" alt="Bridgic技术交流群二维码" />](/assets/bridgic_group_chat_qr_code.png)
 
 （正文完）
 
