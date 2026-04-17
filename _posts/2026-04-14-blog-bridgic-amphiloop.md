@@ -316,6 +316,7 @@ npx skills add bitsky-tech/bridgic-browser --skill bridgic-browser
 
 - `bridgic-amphibious`教程文档： <https://docs.bridgic.ai/latest/tutorials/items/amphibious>
 - AmphiLoop项目GitHub主页：<https://github.com/bitsky-tech/amphiloop>
+- 更多`TASK.md`样例，可以下载试验：<https://github.com/bitsky-tech/bridgic-examples/tree/main/amphiloop-browser-examples>
 - `bridgic-amphibious`子框架GitHub地址：<https://github.com/bitsky-tech/bridgic/tree/main/packages/bridgic-amphibious>
 - `bridgic-browser`浏览器工具集GitHub主页：<https://github.com/bitsky-tech/bridgic-browser>
 
