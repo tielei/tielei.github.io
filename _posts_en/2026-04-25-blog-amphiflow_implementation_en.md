@@ -10,7 +10,9 @@ This year, we're seeing a noticeable shift at the AI application layer—from wo
 
 In my previous article on our new technology stack [AmphiLoop](https://medium.com/towards-artificial-intelligence/beyond-autonomous-why-im-building-an-amphibious-agent-fcae9a409220), I introduced a new programmatic architecture called "Amphiflow". **Amphiflow is what I believe to be the first truly "decision–execution decoupled" agent architecture. It combines workflow and agent paradigms into a single runtime, with the ability to switch between them automatically**.
 
-Today, taking advantage of the weekend, let's analyze the implementation principles behind this architecture and examine how it can leverage the advantages of both modes simultaneously.
+[<img src="/cover-image/amphiflow-implementation/cover.png" width="80%" />](/cover-image/amphiflow-implementation/cover.png)
+
+Today, let's analyze the implementation principles behind this architecture and examine how it can leverage the advantages of both modes simultaneously.
 
 <!--more-->
 
