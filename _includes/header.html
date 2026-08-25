@@ -13,6 +13,10 @@
         <ul class="nav navbar-nav navbar-right">
           {% if page.lang == 'en' %}
           <li><a href="{{ page.translation_url | default: '/' }}" lang="zh-CN">中文</a></li>
+          {% elsif page.layout == 'post' %}
+            {% if page.translation_url %}
+          <li><a href="{{ page.translation_url }}" lang="en">English</a></li>
+            {% endif %}
           {% else %}
           <li><a href="{{ page.translation_url | default: '/en/' }}" lang="en">English</a></li>
           {% endif %}

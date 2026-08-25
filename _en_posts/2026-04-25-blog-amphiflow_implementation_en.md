@@ -12,13 +12,13 @@ published: true
 
 This year, we're seeing a noticeable shift at the AI application layer—from workflow-based automation toward more autonomous agents. Tools like n8n and Dify represent the former, while OpenClaw, Hermes, and CoWork are early examples of the latter. That said, new paradigms rarely replace old ones outright. More often, they evolve by absorbing and reshaping what came before—a kind of “sublation” rather than simple replacement.
 
-In my previous article on our new technology stack [AmphiLoop](https://medium.com/towards-artificial-intelligence/beyond-autonomous-why-im-building-an-amphibious-agent-fcae9a409220), I introduced a new programmatic architecture called "Amphiflow". **Amphiflow is what I believe to be the first truly "decision–execution decoupled" agent architecture. It combines workflow and agent paradigms into a single runtime, with the ability to switch between them automatically**.
+In my previous article on our new technology stack [AmphiLoop](/en/posts/blog-bridgic-amphiloop-en.html), I introduced a new programmatic architecture called "Amphiflow". **Amphiflow is what I believe to be the first truly "decision–execution decoupled" agent architecture. It combines workflow and agent paradigms into a single runtime, with the ability to switch between them automatically**.
+
+<!--more-->
 
 [<img src="/cover-image/amphiflow-implementation/cover.png" width="80%" />](/cover-image/amphiflow-implementation/cover.png)
 
 Today, let's analyze the implementation principles behind this architecture and examine how it can leverage the advantages of both modes simultaneously.
-
-<!--more-->
 
 > [Click here to download the source code ➜ https://github.com/bitsky-tech/AmphiLoop/](https://github.com/bitsky-tech/AmphiLoop/)
 
