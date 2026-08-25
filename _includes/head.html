@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="{% if page.lang == 'en' %}en{% else %}zh-CN{% endif %}">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{{ page.title }} - {% if page.lang == 'en' %}{{ site.name_en }}{% else %}{{ site.name }}{% endif %}">
+    <title>{{ page.title }} - {% if page.lang == 'en' %}{{ site.name_en }}{% else %}{{ site.name }}{% endif %}</title>
+    {% if page.translation_url %}
+    <link rel="alternate" hreflang="{% if page.lang == 'en' %}zh-CN{% else %}en{% endif %}" href="{{ site.url }}{{ page.translation_url }}">
+    {% endif %}
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/blog.css" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/highlight.css">
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <script src="/js/jquery-1.11.0.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+  </head>

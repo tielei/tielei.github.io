@@ -1,6 +1,11 @@
               <div class="col-lg-12">
                 <ul class="list-unstyled">
-				{% for post in site.posts limit:10 %}
+                {% if page.lang == 'en' %}
+                  {% assign recent_posts = site.en_posts | sort: 'date' | reverse %}
+                {% else %}
+                  {% assign recent_posts = site.posts %}
+                {% endif %}
+				{% for post in recent_posts limit:10 %}
                   <li>
                     <a href="{{ post.url }}">
                       {{ post.title }}

@@ -1,6 +1,9 @@
 ---
 layout: post
 category: ml
+lang: zh
+translation_key: amphiloop-introduction
+translation_url: /en/posts/blog-bridgic-amphiloop-en.html
 title: 万字长文！两栖模式构建Agent，与OpenClaw/Hermes不一样的解法——开源AmphiLoop
 date: 2026-04-14 00:00:00 +0800
 published: true

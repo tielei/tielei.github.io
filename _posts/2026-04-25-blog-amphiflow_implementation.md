@@ -1,6 +1,9 @@
 ---
 layout: post
 category: ml
+lang: zh
+translation_key: amphiflow-architecture
+translation_url: /en/posts/blog-amphiflow-implementation.html
 title: 为什么agent和workflow可以融合在同一个架构里？
 date: 2026-04-25 00:00:00 +0800
 published: true

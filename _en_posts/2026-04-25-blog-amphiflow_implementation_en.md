@@ -1,7 +1,11 @@
 ---
 layout: post
 category: ml
-title: Why Can Agent and Workflow Be Unified in a Single Architecture?
+lang: en
+translation_key: amphiflow-architecture
+translation_url: /posts/blog-amphiflow_implementation.html
+permalink: /en/posts/blog-amphiflow-implementation.html
+title: "Why Can Agent and Workflow Be Unified in a Single Architecture?"
 date: 2026-04-25 00:00:00 +0800
 published: true
 ---

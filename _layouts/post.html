@@ -1,59 +1,26 @@
---- 
-layout: default 
---- 
-<!-- Navi -->
-{% for cat in site.all_categories %}
-{% if page.category == cat[0] %}
-	<a href="/">首页</a>&nbsp;>&nbsp;<a href="{{cat[2]}}">{{cat[1]}}</a>&nbsp;>&nbsp;正文
-{% endif %}
-{% endfor %}
-
-<!-- Title -->
-<h2>
-  {{ page.title }}
-  <div class="post-date">
-	<span class="glyphicon glyphicon-time"></span>
-	{{ page.date | date:"%Y-%m-%d" }}
-  </div>
-</h2>
+---
+layout: default
+---
+{% if page.lang == 'en' %}{% assign category_list = site.all_categories_en %}{% else %}{% assign category_list = site.all_categories %}{% endif %}
+{% for cat in category_list %}{% if page.category == cat[0] %}
+<a href="{% if page.lang == 'en' %}/en/{% else %}/{% endif %}">{% if page.lang == 'en' %}Home{% else %}首页{% endif %}</a>&nbsp;&gt;&nbsp;<a href="{{ cat[2] }}">{{ cat[1] }}</a>&nbsp;&gt;&nbsp;{% if page.lang == 'en' %}Post{% else %}正文{% endif %}
+{% endif %}{% endfor %}
+<h2>{{ page.title }}<div class="post-date"><span class="glyphicon glyphicon-time"></span>{{ page.date | date:"%Y-%m-%d" }}</div></h2>
+{% if page.translation_url %}<p><a class="btn btn-default btn-sm" href="{{ page.translation_url }}">{% if page.lang == 'en' %}阅读中文版本{% else %}Read in English{% endif %}</a></p>{% endif %}
 <hr>
-
 {{ content }}
 <br/>
-<b>原创文章，转载请注明出处，并包含下面的二维码！否则拒绝转载！</b>
-<br/>
-<b>本文链接：</b><a href="{{site.url}}{{page.url}}" title="{{page.name}}">{{site.url}}{{page.url}}</a>
-<br/>
+{% if page.lang == 'en' %}
+<b>Original article. Please credit the source when reposting.</b><br/>
+<b>Permalink:</b> <a href="{{ site.url }}{{ page.url }}" title="{{ page.name }}">{{ site.url }}{{ page.url }}</a>
+{% else %}
+<b>原创文章，转载请注明出处，并包含下面的二维码！否则拒绝转载！</b><br/>
+<b>本文链接：</b><a href="{{site.url}}{{page.url}}" title="{{page.name}}">{{site.url}}{{page.url}}</a><br/>
 <b style="color:#C55A11;">欢迎关注我的个人微博：微博上搜索我的名字「张铁蕾」。</b>
-
-<br/>
-<div style="text-align:center">
-<img src="/assets/my_weixin_sign_sf_840.jpg" style="width:400px" alt="我的微信公众号: tielei-blog (张铁蕾)" />
-</div>
-
-<!-- next and previous -->
+<div style="text-align:center"><img src="/assets/my_weixin_sign_sf_840.jpg" style="width:400px" alt="我的微信公众号: tielei-blog (张铁蕾)" /></div>
+{% endif %}
 <div style="margin-top:15px; margin-bottom:10px">
-  {%if page.previous%}
-  <span class="next">
-    上篇：
-    <a href="{{page.previous.url}}">
-      {{page.previous.title}}
-    </a>
-  </span>
-  {%endif%} 
-  {%if page.next%}
-  <div style="float:right">
-  <span class="prev" >
-    下篇：
-    <a href="{{page.next.url}}">
-      {{page.next.title}}
-    </a>
-  </span>
-  </div>
-  {%endif%}
+  {% if page.previous %}<span class="next">{% if page.lang == 'en' %}Previous:{% else %}上篇：{% endif %} <a href="{{ page.previous.url }}">{{ page.previous.title }}</a></span>{% endif %}
+  {% if page.next %}<div style="float:right"><span class="prev">{% if page.lang == 'en' %}Next:{% else %}下篇：{% endif %} <a href="{{ page.next.url }}">{{ page.next.title }}</a></span></div>{% endif %}
 </div>
-<hr>
-<!-- Blog Comments -->
-<div class="media">
-  {% include comment.html %} 
-</div>
+<hr><div class="media">{% include comment.html %}</div>

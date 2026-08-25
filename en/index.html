@@ -1,0 +1,18 @@
+---
+layout: index
+lang: en
+title: "Charles Zhang's Blog"
+translation_url: /
+---
+
+{% assign english_posts = site.en_posts | sort: 'date' | reverse %}
+{% for post in english_posts %}
+<h2>
+  <a href="{{ post.url }}">{{ post.title }}</a>
+  <div class="post-date"><span class="glyphicon glyphicon-time"></span>{{ post.date | date:"%Y-%m-%d" }}</div>
+</h2>
+<hr>
+{{ post.excerpt }}
+<p><h3><a href="{{ post.url }}">Read more &raquo;</a></h3></p>
+<hr>
+{% endfor %}

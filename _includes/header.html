@@ -1,0 +1,22 @@
+<body>
+  <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+          <span class="sr-only">{% if page.lang == 'en' %}Toggle navigation{% else %}切换导航{% endif %}</span>
+          <span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="{% if page.lang == 'en' %}/en/{% else %}/{% endif %}">{% if page.lang == 'en' %}Home{% else %}首页{% endif %}</a>
+      </div>
+      <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+        {% include navigation.html %}
+        <ul class="nav navbar-nav navbar-right">
+          {% if page.lang == 'en' %}
+          <li><a href="{{ page.translation_url | default: '/' }}" lang="zh-CN">中文</a></li>
+          {% else %}
+          <li><a href="{{ page.translation_url | default: '/en/' }}" lang="en">English</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>

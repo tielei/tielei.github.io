@@ -1,3 +1,14 @@
+{% if page.lang == 'en' %}
+              <div class="col-lg-12">
+                <ul class="list-unstyled">
+                  {% for cat in site.all_categories_en %}
+                  {% unless cat[0] == 'about' %}
+                  <li><a href="{{ cat[2] }}">{{ cat[1] }}</a></li>
+                  {% endunless %}
+                  {% endfor %}
+                </ul>
+              </div>
+{% else %}
               <div class="col-lg-6">
                 <ul class="list-unstyled">
                   <li>
@@ -23,6 +34,7 @@
                 </ul>
               </div>
               <!-- /.col-lg-6 -->
+{% endif %}
               <div class="col-lg-6">
                 <ul class="list-unstyled">
                   <li>

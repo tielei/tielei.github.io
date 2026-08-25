@@ -1,7 +1,11 @@
 ---
 layout: post
 category: ml
-title: ### Beyond Autonomous: Why I’m Building an Amphibious Agent
+lang: en
+translation_key: amphiloop-introduction
+translation_url: /posts/blog-bridgic-amphiloop.html
+permalink: /en/posts/blog-bridgic-amphiloop-en.html
+title: "Beyond Autonomous: Why I’m Building an Amphibious Agent"
 date: 2026-04-19 00:00:00 +0800
 published: true
 ---

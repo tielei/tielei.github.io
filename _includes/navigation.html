@@ -1,9 +1,14 @@
 		<ul class="nav navbar-nav">
-			{% for cat in site.all_categories %}
+			{% if page.lang == 'en' %}
+				{% assign navigation_categories = site.all_categories_en %}
+			{% else %}
+				{% assign navigation_categories = site.all_categories %}
+			{% endif %}
+			{% for cat in navigation_categories %}
 				<li>
 				  <a href="{{cat[2]}}">
 					{{cat[1]}}
 				  </a>
 				</li>
 			{% endfor %}
-		</ul> 
+		</ul>

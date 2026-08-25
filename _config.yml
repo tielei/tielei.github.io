@@ -7,6 +7,7 @@ excerpt_separator: "<!--more-->"
 github: tielei
 author: "张铁蕾"
 name: "铁蕾的个人博客"
+name_en: "Charles Zhang's Blog"
 url: http://zhangtielei.com
 domain: zhangtielei.com
 all_categories: [
@@ -18,6 +19,10 @@ all_categories: [
 ["poems", "我的诗词","/posts/poems.html"], 
 ["about", "关于我","/about.html"]
 ]
+all_categories_en: [
+["ml", "AI", "/en/posts/ai.html"],
+["about", "About", "/en/about.html"]
+]
 
 paginate: 8
 paginate_path: "posts/page:num"
@@ -27,6 +32,9 @@ timezone: Asia/Shanghai
 collections:
   docs:
     output: true
+  en_posts:
+    output: true
+    permalink: /en/posts/:name.html
 
 plugins:
  - jekyll-paginate

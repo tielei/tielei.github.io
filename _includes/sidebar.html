@@ -1,0 +1,13 @@
+<div class="col-md-4">
+  <div class="well">
+    <h4>{% if page.lang == 'en' %}Categories{% else %}栏目分类{% endif %}</h4>
+    <div class="row">{% include categories.html %}</div>
+  </div>
+  <div class="well">
+    <h4>{% if page.lang == 'en' %}Recent Posts{% else %}最新文章{% endif %}</h4>
+    <div class="row">{% include recent_posts.html %}</div>
+  </div>
+  {% unless page.lang == 'en' %}
+  <div class="well"><h4>相关链接</h4>{% include links.html %}</div>
+  {% endunless %}
+</div>
