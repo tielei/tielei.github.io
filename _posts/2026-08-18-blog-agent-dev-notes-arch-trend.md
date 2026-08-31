@@ -1,6 +1,8 @@
 ---
 layout: post
 category: ml
+translation_key: durable-agent-architecture
+translation_url: /en/posts/blog-agent-dev-notes-arch-trend.html
 title: Agent开发手记：agent架构的一个发展趋势
 date: 2026-08-18 00:00:00 +0800
 published: true
