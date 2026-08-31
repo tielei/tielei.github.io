@@ -10,7 +10,7 @@ date: 2026-08-18 00:00:00 +0800
 published: true
 ---
 
-While developing [Bridgic Agent](https://mp.weixin.qq.com/s/UIX52eQIGDmsAggyf1AKfw), I have gradually come to see a trend in the evolution of agent architecture. To sum up my conclusion in one sentence: agent architectures are evolving toward **durability**.
+While developing [Bridgic Agent](https://github.com/bitsky-tech/bridgic-agent), I have gradually come to see a trend in the evolution of agent architecture. To sum up my conclusion in one sentence: agent architectures are evolving toward **durability**.
 
 <!--more-->
 
@@ -93,7 +93,7 @@ To summarize, future agent architectures will decouple the frontend from the bac
 
 Such an architecture is clearly better suited to cloud deployment. It also works equally well for clients and the cloud. Most agents on the market have not yet reached this point because of path dependence and because the problem has not been severe enough so far.
 
-From the beginning, however, [Bridgic Agent](https://mp.weixin.qq.com/s/UIX52eQIGDmsAggyf1AKfw) has embraced the principle that **“Agent-Led, Not Human-Driven.”** This creates a more urgent need for such an architecture. As a result, Bridgic Agent's architecture is now only one step away from that of a true cloud agent.
+From the beginning, however, [Bridgic Agent](https://github.com/bitsky-tech/bridgic-agent) has embraced the principle that **“Agent-Led, Not Human-Driven.”** This creates a more urgent need for such an architecture. As a result, Bridgic Agent's architecture is now only one step away from that of a true cloud agent.
 
 This article has examined one direction in the evolution of agent architecture and how it manifests in a real development project. It is certainly not the whole story of agents.
 
@@ -103,9 +103,9 @@ I will continue sharing my experience developing agents. Comments and discussion
 
 **More selected articles:**
 
-- [After Months in Seclusion, I’m Officially Releasing an Open-Source Agent—and Starting to “Build on the Side”](https://mp.weixin.qq.com/s/UIX52eQIGDmsAggyf1AKfw)
-- [Why Can Agents and Workflows Be Unified in a Single Architecture?](https://mp.weixin.qq.com/s/heZdKTFKn1r33QwarNhrMg)
-- [Building Agents in Amphibious Mode: A Different Approach from OpenClaw and Hermes](https://mp.weixin.qq.com/s/KKHWWzJqeKR1fF6EsXheLQ)
+- [After Months in Seclusion, I’m Officially Releasing an Open-Source Agent—and Starting to “/build”](https://zhangtielei.com/posts/blog-bridgic-agent-workflow-builder.html)
+- [Why Can Agents and Workflows Be Unified in a Single Architecture?](https://zhangtielei.com/en/posts/blog-amphiflow-implementation.html)
+- [Beyond Autonomous: Why I’m Building an Amphibious Agent](https://zhangtielei.com/en/posts/blog-bridgic-amphiloop-en.html)
 - [A Lunar New Year Conversation About AI and the Humanities](https://mp.weixin.qq.com/s/8rQ8a5M35ymod_gjP1JChg)
 - [The AI Agent Era May Reset in 2026](https://mp.weixin.qq.com/s/h8kS6dpoX2YC771M0nGrAA)
 - [The Software Development Paradigm in the AI Agent Era](https://mp.weixin.qq.com/s/vejqEv5hACcbT15b4Xe5LQ)
